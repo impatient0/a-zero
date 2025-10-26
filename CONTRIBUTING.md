@@ -13,7 +13,7 @@ This document outlines the development standards, project structure, and coding 
 
 ## 2. Code Style & Best Practices
 
-- **Language Level:** The project uses Java 17. Code should leverage modern language features where appropriate.
+- **Language Level:** The project uses Java 21. Code should leverage modern language features where appropriate.
 - **Logging:**
     - Use SLF4J for the logging facade.
     - In classes, instantiate the logger via Lombok's `@Slf4j` annotation. Do not create manual logger instances.
