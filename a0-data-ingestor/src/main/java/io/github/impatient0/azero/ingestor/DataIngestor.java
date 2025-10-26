@@ -30,6 +30,7 @@ public class DataIngestor implements Callable<Integer> {
     private static final int BINANCE_API_LIMIT = 1000;
     private static final long API_CALL_DELAY_MS = 500; // Respectful delay to avoid rate limiting
     private static final String[] CSV_HEADER = {"timestamp_ms", "open", "high", "low", "close", "volume"};
+    private static final CSVFormat CSV_FORMAT = CSVFormat.DEFAULT.builder().setHeader(CSV_HEADER).get();
 
     @Option(names = "--symbol", required = true, description = "The crypto symbol pair (e.g., BTCUSDT).")
     private String symbol;
@@ -65,7 +66,7 @@ public class DataIngestor implements Callable<Integer> {
                 .toEpochMilli();
         } catch (Exception e) {
             log.error("Invalid date format for --start-date. Please use YYYY-MM-DD.", e);
-            return 1; // Non-zero exit code indicates failure
+            return 1; // Failure
         }
 
         String outputFilename = String.format("%s-%s.csv", symbol.toUpperCase(), timeframe);
@@ -73,7 +74,7 @@ public class DataIngestor implements Callable<Integer> {
 
         try (
             FileWriter out = new FileWriter(outputFilename);
-            CSVPrinter csvPrinter = new CSVPrinter(out, CSVFormat.DEFAULT.withHeader(CSV_HEADER))
+            CSVPrinter csvPrinter = new CSVPrinter(out, CSV_FORMAT)
         ) {
             log.info("Output will be written to {}", outputFilename);
 
@@ -95,7 +96,6 @@ public class DataIngestor implements Callable<Integer> {
 
                 for (List<Object> kline : klines) {
                     // Data Contract: [timestamp_ms, open, high, low, close, volume, ...]
-                    // We only need the first 6 elements.
                     csvPrinter.printRecord(
                         kline.get(0), // timestamp_ms
                         kline.get(1), // open
@@ -108,7 +108,6 @@ public class DataIngestor implements Callable<Integer> {
                 }
 
                 // Prepare for the next API call
-                // The next start time is the timestamp of the last record + 1 millisecond
                 long lastTimestamp = (long) klines.get(klines.size() - 1).get(0);
                 startTimeMs = lastTimestamp + 1;
 
@@ -134,7 +133,7 @@ public class DataIngestor implements Callable<Integer> {
 
         } catch (IOException e) {
             log.error("Failed to write to CSV file: {}", outputFilename, e);
-            return 1;
+            return 1; // Failure
         }
     }
 
@@ -145,16 +144,13 @@ public class DataIngestor implements Callable<Integer> {
         params.put("startTime", startTimeMs);
         params.put("limit", BINANCE_API_LIMIT);
 
-        // The official library returns a raw JSON string which must be parsed.
         String jsonResponse = spotClient.createMarket().klines(params);
 
-        // The response is a JSON array of arrays, e.g., [[t, o, h, l, c, v], [...]]
-        // We use Jackson to parse it into a List of Lists.
-        return objectMapper.readValue(jsonResponse, new TypeReference<List<List<Object>>>() {});
+        return objectMapper.readValue(jsonResponse, new TypeReference<>() {
+        });
     }
 
     public static void main(String[] args) {
-        // picocli's CommandLine will parse args, handle errors, and call the `call()` method.
         int exitCode = new CommandLine(new DataIngestor()).execute(args);
         System.exit(exitCode);
     }
