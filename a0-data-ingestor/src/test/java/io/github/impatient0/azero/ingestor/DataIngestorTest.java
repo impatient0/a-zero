@@ -3,7 +3,9 @@ package io.github.impatient0.azero.ingestor;
 import com.binance.connector.client.SpotClient;
 import com.binance.connector.client.impl.spot.Market;
 import java.io.IOException;
+import java.nio.file.Paths;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import tools.jackson.databind.ObjectMapper;
@@ -47,6 +49,7 @@ class DataIngestorTest {
     }
 
     @Test
+    @DisplayName("call() should fetch and write paginated data correctly.")
     void call_shouldFetchAndWritePaginatedData() throws Exception {
         // --- ARRANGE ---
         dataIngestor = new DataIngestor(spotClient, new ObjectMapper());
@@ -83,6 +86,7 @@ class DataIngestorTest {
 
 
     @Test
+    @DisplayName("call() should return failure code and not write file when API throws an exception.")
     void call_whenApiThrowsException_shouldLogErrorAndReturnFailureCode() throws Exception {
         // --- ARRANGE ---
         dataIngestor = new DataIngestor(spotClient, objectMapper);
@@ -107,6 +111,7 @@ class DataIngestorTest {
 
 
     @Test
+    @DisplayName("call() should return failure code when output file cannot be written (I/O error).")
     void call_whenFileCannotBeWritten_shouldLogErrorAndReturnFailureCode() throws Exception {
         // --- ARRANGE ---
         dataIngestor = new DataIngestor(spotClient, objectMapper);
@@ -127,6 +132,7 @@ class DataIngestorTest {
     }
 
     @Test
+    @DisplayName("call() should create file with only header and succeed when API returns no data.")
     void call_whenApiReturnsNoDataInitially_shouldCreateEmptyFileAndSucceed() throws Exception {
         // --- ARRANGE ---
         dataIngestor = new DataIngestor(spotClient, objectMapper);
@@ -151,6 +157,29 @@ class DataIngestorTest {
         List<String> lines = Files.readAllLines(outputFile);
         assertEquals(1, lines.size(), "CSV should contain only the header row.");
         assertEquals("timestamp_ms,open,high,low,close,volume", lines.get(0));
+    }
+
+    @Test
+    @DisplayName("call() should clean up temporary file when API throws an exception.")
+    void call_whenApiThrowsException_shouldCleanupTemporaryFile() throws Exception {
+        // --- ARRANGE ---
+        dataIngestor = new DataIngestor(spotClient, objectMapper);
+        injectField(dataIngestor, "symbol", "BTCUSDT");
+        injectField(dataIngestor, "timeframe", "1h");
+        injectField(dataIngestor, "startDateStr", "2023-01-01");
+
+        Path tempFilePath = Paths.get("BTCUSDT-1h.csv.tmp");
+
+        // Arrange the mock to throw an exception after the temp file has been created.
+        when(spotClient.createMarket()).thenReturn(market);
+        when(market.klines(any(LinkedHashMap.class)))
+            .thenThrow(new RuntimeException("Simulated API Error"));
+
+        // --- ACT ---
+        dataIngestor.call();
+
+        // --- ASSERT ---
+        assertFalse(Files.exists(tempFilePath), "The temporary file should be deleted on failure.");
     }
 
     private void injectField(Object target, String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
