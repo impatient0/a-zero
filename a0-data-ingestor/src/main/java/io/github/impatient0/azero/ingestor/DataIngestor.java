@@ -2,8 +2,8 @@ package io.github.impatient0.azero.ingestor;
 
 import com.binance.connector.client.SpotClient;
 import com.binance.connector.client.impl.SpotClientImpl;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
@@ -44,10 +44,12 @@ public class DataIngestor implements Callable<Integer> {
     private final ObjectMapper objectMapper;
 
     public DataIngestor() {
-        // For this public data endpoint, API key and secret are not needed.
-        // The client is designed to accommodate them if private endpoints are used later.
-        this.spotClient = new SpotClientImpl();
-        this.objectMapper = new ObjectMapper();
+        this(new SpotClientImpl(), new ObjectMapper());
+    }
+
+    DataIngestor(SpotClient spotClient, ObjectMapper objectMapper) {
+        this.spotClient = spotClient;
+        this.objectMapper = objectMapper;
     }
 
     @Override
