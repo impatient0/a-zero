@@ -26,31 +26,27 @@ Our core guiding principles are:
 This project is in its early stages. Our planned development path is:
 
 *   [x] **v0.1:** Core backtesting engine and data ingestion utility.
+    *   [x] Data Ingestion Utility
+    *   [ ] CLI Backtesting Engine
 *   [ ] **v0.2:** Integration with exchange Testnet APIs for paper trading.
 *   [ ] **v0.3:** Initial hooks and interfaces for sentiment analysis modules.
 *   [ ] **v1.0:** A stable, production-ready framework for live spot trading.
 
 ## Getting Started
 
-*(This section will be filled out as we build the library. It will eventually look something like this.)*
+The A-Zero framework is under active development. The first available tool is the `data-ingestor`.
 
-To use A-Zero as a framework, add it as a dependency to your Maven project:
+### Downloading Historical Data
 
-```xml
-<dependency>
-    <groupId>io.github.impatient0.azero</groupId>
-    <artifactId>a0-backtester</artifactId>
-    <version>0.1.0</version>
-</dependency>
-```
+1. Clone the repository: `git clone https://github.com/impatient0/a-zero.git`
+2. Navigate to the project directory: `cd a-zero`
+3. Build the project using Maven: `mvn clean package`
+4. Run the data ingestor tool:
+   ```bash
+   java -jar a0-data-ingestor/target/a0-data-ingestor-0.1.0-SNAPSHOT.jar --symbol=BTCUSDT --timeframe=1h --start-date=2023-01-01
+   ```
 
-Then, create your own strategy by implementing the `Strategy` interface:
-
-```java
-public class MyFirstStrategy implements Strategy {
-    // Your logic here
-}
-```
+This will create a `BTCUSDT-1h.csv` file in your project root, ready for use with the backtesting engine.
 
 ## License
 

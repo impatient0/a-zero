@@ -27,6 +27,8 @@ This project follows an "Open Core" model, separating the reusable framework fro
 ## 3. Module Specifications
 
 ### 3.1 Module: `data-ingestor`
+- **Status:** Implemented in v0.1
+- **Documentation:** See Ingestor's [README.md](a0-data-ingestor/README.md)
 - **Responsibility:** To fetch historical K-line (candle) data for a given crypto spot pair from the Binance public API and save it to a local CSV file.
 - **Inputs:**
     - `symbol` (e.g., "BTCUSDT")
