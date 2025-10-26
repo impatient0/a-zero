@@ -2,6 +2,10 @@ package io.github.impatient0.azero.ingestor;
 
 import com.binance.connector.client.SpotClient;
 import com.binance.connector.client.impl.SpotClientImpl;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -70,10 +74,12 @@ public class DataIngestor implements Callable<Integer> {
         }
 
         String outputFilename = String.format("%s-%s.csv", symbol.toUpperCase(), timeframe);
+        Path tempFilePath = Paths.get(outputFilename + ".tmp");
+        Path finalFilePath = Paths.get(outputFilename);
         int totalRecordsWritten = 0;
 
         try (
-            FileWriter out = new FileWriter(outputFilename);
+            FileWriter out = new FileWriter(tempFilePath.toFile());
             CSVPrinter csvPrinter = new CSVPrinter(out, CSV_FORMAT)
         ) {
             log.info("Output will be written to {}", outputFilename);
@@ -86,7 +92,7 @@ public class DataIngestor implements Callable<Integer> {
                     klines = fetchKlines(startTimeMs);
                 } catch (Exception e) {
                     log.error("An error occurred while fetching data from Binance API. Halting process.", e);
-                    return 1;
+                    throw e;
                 }
 
                 if (klines.isEmpty()) {
@@ -125,19 +131,26 @@ public class DataIngestor implements Callable<Integer> {
                     Thread.currentThread().interrupt(); // Restore the interrupted status
                 }
             }
+        } catch (Exception e) {
+            log.error("Data ingestion failed. Cleaning up temporary artifacts.", e);
+            Files.deleteIfExists(tempFilePath);
+            return 1; // Failure
+        }
 
+        try {
+            Files.move(tempFilePath, finalFilePath, StandardCopyOption.REPLACE_EXISTING);
             log.info("Successfully completed data ingestion.");
             log.info("Total records written: {}", totalRecordsWritten);
-            log.info("Output file: {}", outputFilename);
+            log.info("Output file: {}", finalFilePath);
             return 0; // Success
-
         } catch (IOException e) {
-            log.error("Failed to write to CSV file: {}", outputFilename, e);
+            log.error("Successfully fetched data, but failed to move temp file to final destination.", e);
+            Files.deleteIfExists(tempFilePath); // Best-effort cleanup
             return 1; // Failure
         }
     }
 
-    private List<List<Object>> fetchKlines(long startTimeMs) throws IOException {
+    private List<List<Object>> fetchKlines(long startTimeMs) {
         LinkedHashMap<String, Object> params = new LinkedHashMap<>();
         params.put("symbol", symbol.toUpperCase());
         params.put("interval", timeframe);
