@@ -33,3 +33,6 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Shade ###
+**/dependency-reduced-pom.xml
