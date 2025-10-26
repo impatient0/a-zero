@@ -2,6 +2,8 @@ package io.github.impatient0.azero.ingestor;
 
 import com.binance.connector.client.SpotClient;
 import com.binance.connector.client.impl.spot.Market;
+import java.io.IOException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import tools.jackson.databind.ObjectMapper;
@@ -16,6 +18,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -31,6 +34,17 @@ class DataIngestorTest {
 
     private DataIngestor dataIngestor;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @AfterEach
+    void cleanup() throws IOException {
+        Path path = Path.of("BTCUSDT-1h.csv");
+        if (Files.isDirectory(path)) {
+            // Simple directory deletion; for more complex cases, a recursive delete would be needed.
+            Files.deleteIfExists(path);
+        } else {
+            Files.deleteIfExists(path);
+        }
+    }
 
     @Test
     void call_shouldFetchAndWritePaginatedData() throws Exception {
@@ -65,9 +79,78 @@ class DataIngestorTest {
         assertEquals("timestamp_ms,open,high,low,close,volume", lines.get(0));
         assertEquals("1672531200000,100,110,90,105,1000", lines.get(1)); // Check first record
         assertEquals("1676131200000,110,120,100,115,1500", lines.get(1001)); // Check last record
+    }
 
-        // Cleanup
-        Files.delete(outputFile);
+
+    @Test
+    void call_whenApiThrowsException_shouldLogErrorAndReturnFailureCode() throws Exception {
+        // --- ARRANGE ---
+        dataIngestor = new DataIngestor(spotClient, objectMapper);
+        injectField(dataIngestor, "symbol", "BTCUSDT");
+        injectField(dataIngestor, "timeframe", "1h");
+        injectField(dataIngestor, "startDateStr", "2023-01-01");
+
+        // Simulate the API call throwing an exception (e.g., network timeout, 500 error)
+        when(spotClient.createMarket()).thenReturn(market);
+        when(market.klines(any(LinkedHashMap.class)))
+            .thenThrow(new RuntimeException("Simulated API Error: Binance API is down"));
+
+        // --- ACT ---
+        Integer exitCode = dataIngestor.call();
+
+        // --- ASSERT ---
+        assertEquals(1, exitCode, "The command should exit with code 1 for failure.");
+
+        Path outputFile = Path.of("BTCUSDT-1h.csv");
+        assertFalse(Files.exists(outputFile), "Output CSV file should not be created on API failure.");
+    }
+
+
+    @Test
+    void call_whenFileCannotBeWritten_shouldLogErrorAndReturnFailureCode() throws Exception {
+        // --- ARRANGE ---
+        dataIngestor = new DataIngestor(spotClient, objectMapper);
+        injectField(dataIngestor, "symbol", "BTCUSDT");
+        injectField(dataIngestor, "timeframe", "1h");
+        injectField(dataIngestor, "startDateStr", "2023-01-01");
+
+        // Create a directory with the same name as the target file.
+        // This will cause 'new FileWriter(...)' to throw an IOException.
+        Path blockingDirectory = Path.of("BTCUSDT-1h.csv");
+        Files.createDirectory(blockingDirectory);
+
+        // --- ACT ---
+        Integer exitCode = dataIngestor.call();
+
+        // --- ASSERT ---
+        assertEquals(1, exitCode, "The command should exit with code 1 for I/O failure.");
+    }
+
+    @Test
+    void call_whenApiReturnsNoDataInitially_shouldCreateEmptyFileAndSucceed() throws Exception {
+        // --- ARRANGE ---
+        dataIngestor = new DataIngestor(spotClient, objectMapper);
+        injectField(dataIngestor, "symbol", "BTCUSDT");
+        injectField(dataIngestor, "timeframe", "1h");
+        injectField(dataIngestor, "startDateStr", "2023-01-01");
+
+        // Simulate the API returning an empty list on the first and only call
+        String emptyResponse = "[]";
+        when(spotClient.createMarket()).thenReturn(market);
+        when(market.klines(any(LinkedHashMap.class))).thenReturn(emptyResponse);
+
+        // --- ACT ---
+        Integer exitCode = dataIngestor.call();
+
+        // --- ASSERT ---
+        assertEquals(0, exitCode, "The command should exit with code 0 for success even with no data.");
+
+        Path outputFile = Path.of("BTCUSDT-1h.csv");
+        assertTrue(Files.exists(outputFile), "Output CSV file should still be created.");
+
+        List<String> lines = Files.readAllLines(outputFile);
+        assertEquals(1, lines.size(), "CSV should contain only the header row.");
+        assertEquals("timestamp_ms,open,high,low,close,volume", lines.get(0));
     }
 
     private void injectField(Object target, String fieldName, Object value) throws NoSuchFieldException, IllegalAccessException {
