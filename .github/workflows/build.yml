@@ -18,12 +18,22 @@ on:
 jobs:
   # This workflow contains a single job called "build-and-test".
   build-and-test:
-    # The type of runner that the job will run on.
-    # 'ubuntu-latest' provides a clean, Linux-based environment.
     runs-on: ubuntu-latest
 
-    # 'steps' represents a sequence of tasks that will be executed as part of the job.
     steps:
-      # Steps will be added here in the next phases of implementation.
-      - name: Placeholder for future steps
-        run: echo "Job structure is set up. Ready for implementation."
+      # Step 1: Checkout the repository's code.
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up JDK 21 and cache Maven dependencies.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          # Enable caching for Maven dependencies.
+          cache: 'maven'
+
+      # Step 3: Build the project, run tests, and package the artifacts.
+      - name: Build and Test with Maven
+        run: mvn -B package
