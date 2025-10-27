@@ -27,6 +27,8 @@ This project follows an "Open Core" model, separating the reusable framework fro
 ## 3. Module Specifications
 
 ### 3.1 Module: `data-ingestor`
+- **Status:** Implemented in v0.1
+- **Documentation:** See Ingestor's [README.md](a0-data-ingestor/README.md)
 - **Responsibility:** To fetch historical K-line (candle) data for a given crypto spot pair from the Binance public API and save it to a local CSV file.
 - **Inputs:**
     - `symbol` (e.g., "BTCUSDT")
@@ -66,3 +68,16 @@ exit_rules:
 simulation_parameters:
   trading_fee_percentage: 0.1
   slippage_percentage: 0.05
+```
+
+## 5. Continuous Integration Process
+
+The project's quality and stability are enforced by an automated Continuous Integration (CI) workflow defined in [`.github/workflows/build.yml`](.github/workflows/build.yml).
+
+The CI process is triggered on all pushes and pull requests to the `main` and `develop` branches. On each trigger, the workflow executes the `mvn -B package` command within a clean Ubuntu environment using JDK 21. This single command serves as our primary quality gate by performing three critical actions:
+
+1.  **Compile:** Verifies that all source code is syntactically correct and compiles successfully.
+2.  **Test:** Executes the complete suite of automated tests across all project modules.
+3.  **Package:** Ensures the project can be correctly packaged into its distributable JAR artifacts.
+
+A failure in any of these stages will result in a failed workflow run, providing immediate feedback and preventing defective code from being merged into the main branches. The build status is publicly visible via the badge in the project's [`README.md`](README.md).
