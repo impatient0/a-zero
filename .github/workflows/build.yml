@@ -1,0 +1,39 @@
+# A-Zero CI Build Workflow
+# This workflow is the primary quality gate for the A-Zero project. It ensures that all code
+# merged into the main development branches compiles, passes all tests, and can be packaged.
+
+name: A-Zero CI Build
+
+# Defines the trigger events for this workflow.
+on:
+  # Run on pushes to the main and develop branches.
+  push:
+    branches: [ main, develop ]
+
+  # Run on pull requests targeting the main and develop branches.
+  pull_request:
+    branches: [ main, develop ]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel.
+jobs:
+  # This workflow contains a single job called "build-and-test".
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository's code.
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up JDK 21 and cache Maven dependencies.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          # Enable caching for Maven dependencies.
+          cache: 'maven'
+
+      # Step 3: Build the project, run tests, and package the artifacts.
+      - name: Build and Test with Maven
+        run: mvn -B package
