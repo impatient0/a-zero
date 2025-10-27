@@ -14,6 +14,7 @@
 
   <modules>
     <module>a0-data-ingestor</module>
+    <module>a0-core</module>
   </modules>
 
   <properties>
