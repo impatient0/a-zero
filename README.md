@@ -1,7 +1,7 @@
 # A-Zero
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Build Status](https://github.com/impatient0/a-zero/actions/workflows/build.yml/badge.svg)](https://github.com/impatient0/a-zero/actions)
+[![Build Status](https://github.com/impatient0/a-zero/actions/workflows/build.yml/badge.svg?branch=main&event=push)](https://github.com/impatient0/a-zero/actions)
 
 A-Zero is a modular, data-driven, and safety-oriented framework written in Java for building, backtesting, and deploying automated crypto trading strategies.
 
