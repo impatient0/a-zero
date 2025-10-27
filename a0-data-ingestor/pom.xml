@@ -16,6 +16,9 @@
   <description>Command-line tool to fetch historical market data from Binance.</description>
 
   <dependencies>
+    <!-- ============================================================= -->
+    <!-- CORE APPLICATION AND EXTERNAL APIS                            -->
+    <!-- ============================================================= -->
     <dependency>
       <groupId>io.github.binance</groupId>
       <artifactId>binance-connector-java</artifactId>
@@ -24,6 +27,10 @@
       <groupId>info.picocli</groupId>
       <artifactId>picocli</artifactId>
     </dependency>
+
+    <!-- ============================================================= -->
+    <!-- DATA SERIALIZATION AND UTILITIES                              -->
+    <!-- ============================================================= -->
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-csv</artifactId>
@@ -32,18 +39,32 @@
       <groupId>tools.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
     </dependency>
+
+    <!-- ============================================================= -->
+    <!-- LOGGING                                                       -->
+    <!-- ============================================================= -->
+    <!-- API -->
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
+    <!-- Implementation -->
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
     </dependency>
+
+    <!-- ============================================================= -->
+    <!-- BUILD-TIME / DEVELOPER TOOLS                                  -->
+    <!-- ============================================================= -->
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
     </dependency>
+
+    <!-- ============================================================= -->
+    <!-- TESTING                                                       -->
+    <!-- ============================================================= -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
