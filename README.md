@@ -21,6 +21,12 @@ Our core guiding principles are:
 *   **Data Ingestion Utility:** A simple tool for downloading historical K-line data from exchanges like Binance.
 *   **Clean, Modern Java:** Built with modern Java and a minimal set of dependencies, ready for integration with frameworks like Spring.
 
+## Build Status & CI
+
+This project maintains a high standard of code quality through a Continuous Integration (CI) pipeline powered by GitHub Actions. Every push and pull request to our main development branches is automatically built and verified by running a comprehensive test suite.
+
+For detailed logs and a history of all recent builds, please visit the [Actions tab](https://github.com/impatient0/a-zero/actions).
+
 ## Project Roadmap
 
 This project is in its early stages. Our planned development path is:
