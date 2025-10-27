@@ -40,6 +40,9 @@
 
   <dependencyManagement>
     <dependencies>
+      <!-- ============================================================= -->
+      <!-- CORE APPLICATION AND EXTERNAL APIS                            -->
+      <!-- ============================================================= -->
       <dependency>
         <groupId>io.github.binance</groupId>
         <artifactId>binance-connector-java</artifactId>
@@ -50,33 +53,50 @@
         <artifactId>picocli</artifactId>
         <version>${picocli.version}</version>
       </dependency>
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-csv</artifactId>
-        <version>${commons-csv.version}</version>
-      </dependency>
+
+      <!-- ============================================================= -->
+      <!-- DATA SERIALIZATION AND UTILITIES                              -->
+      <!-- ============================================================= -->
       <dependency>
         <groupId>tools.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
         <version>${jackson.version}</version>
       </dependency>
       <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-csv</artifactId>
+        <version>${commons-csv.version}</version>
+      </dependency>
+
+      <!-- ============================================================= -->
+      <!-- LOGGING                                                       -->
+      <!-- ============================================================= -->
+      <!-- API -->
+      <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
         <version>${slf4j.version}</version>
       </dependency>
+      <!-- Implementation -->
       <dependency>
         <groupId>ch.qos.logback</groupId>
         <artifactId>logback-classic</artifactId>
         <version>${logback.version}</version>
       </dependency>
+
+      <!-- ============================================================= -->
+      <!-- BUILD-TIME / DEVELOPER TOOLS                                  -->
+      <!-- ============================================================= -->
       <dependency>
         <groupId>org.projectlombok</groupId>
         <artifactId>lombok</artifactId>
         <version>${lombok.version}</version>
         <scope>provided</scope>
       </dependency>
-      <!-- TESTING -->
+
+      <!-- ============================================================= -->
+      <!-- TESTING                                                       -->
+      <!-- ============================================================= -->
       <dependency>
         <groupId>org.junit.jupiter</groupId>
         <artifactId>junit-jupiter-api</artifactId>
