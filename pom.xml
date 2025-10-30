@@ -15,6 +15,7 @@
   <modules>
     <module>a0-data-ingestor</module>
     <module>a0-core</module>
+    <module>a0-backtester</module>
   </modules>
 
   <properties>
