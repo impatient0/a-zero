@@ -52,7 +52,7 @@ public class BacktestEngine {
 
         log.info("Backtest simulation loop completed.");
 
-        Candle lastCandle = historicalData.isEmpty() ? null : historicalData.get(historicalData.size() - 1);
+        Candle lastCandle = historicalData.isEmpty() ? null : historicalData.getLast();
         return context.calculateResult(lastCandle);
     }
 
