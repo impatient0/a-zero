@@ -40,16 +40,12 @@ public class BacktestEngine {
 
         // --- Core Simulation Loop ---
         for (Candle candle : historicalData) {
-            // In a future step, this is where we will call the strategy:
+            // Future task: Call the strategy here.
             // strategy.onCandle(candle, context);
-
-            // For now, the context's internal state is only modified when a strategy
-            // calls its methods. This loop just advances the simulation time.
         }
 
         log.info("Backtest simulation loop completed.");
 
-        // Mark-to-market any open position using the last available price.
         Candle lastCandle = historicalData.isEmpty() ? null : historicalData.get(historicalData.size() - 1);
         return context.calculateResult(lastCandle);
     }
@@ -88,8 +84,6 @@ public class BacktestEngine {
 
         @Override
         public Optional<Position> getOpenPosition(String symbol) {
-            // This implementation only supports one open position at a time,
-            // so we check if the requested symbol matches the open position.
             if (openPosition != null && Objects.equals(openPosition.symbol(), symbol)) {
                 return Optional.of(openPosition);
             }
@@ -97,53 +91,91 @@ public class BacktestEngine {
         }
 
         @Override
-        public void openPosition(String symbol, TradeDirection direction, BigDecimal quantity, BigDecimal price) {
-            if (openPosition != null) {
-                log.warn("Request to open a new position for {} while one is already open for {}. Ignoring.",
+        public void submitOrder(String symbol, TradeDirection direction, BigDecimal quantity, BigDecimal price) {
+            if (openPosition == null) {
+                openNewPosition(symbol, direction, quantity, price);
+            } else if (Objects.equals(openPosition.symbol(), symbol)) {
+                if (openPosition.direction() == direction) {
+                    scaleInPosition(quantity, price);
+                } else {
+                    scaleOutPosition(quantity, price);
+                }
+            } else {
+                log.warn("Request to trade symbol {} but a position is already open for {}. Ignoring.",
                     symbol, openPosition.symbol());
-                return;
             }
+        }
 
+        private void openNewPosition(String symbol, TradeDirection direction, BigDecimal quantity, BigDecimal price) {
             BigDecimal cost = price.multiply(quantity);
             if (cash.compareTo(cost) < 0) {
                 log.warn("Insufficient funds to open position for {}. Required: {}, Available: {}", symbol, cost, cash);
                 return;
             }
-
-            // Deduct cost from cash and create the new position record.
             cash = cash.subtract(cost);
-            openPosition = new Position(symbol, System.currentTimeMillis(), price, quantity, direction); // Timestamp will be refined later
-            log.info("Opened {} position for {} @ {}. Cost: {}", direction, symbol, price, cost);
+            // NOTE: The timestamp here is a placeholder. A future task will involve passing the
+            // current candle's timestamp through the context for accurate record-keeping.
+            openPosition = new Position(symbol, System.currentTimeMillis(), price, quantity, direction);
+            log.info("OPENED {} position for {} @ {}. Cost: {}", direction, symbol, price, cost);
         }
 
-        @Override
-        public void closePosition(String symbol, BigDecimal price) {
-            if (getOpenPosition(symbol).isEmpty()) {
-                log.warn("Request to close position for {}, but no position is open. Ignoring.", symbol);
+        private void scaleInPosition(BigDecimal additionalQuantity, BigDecimal price) {
+            BigDecimal additionalCost = price.multiply(additionalQuantity);
+            if (cash.compareTo(additionalCost) < 0) {
+                log.warn("Insufficient funds to scale in position for {}. Required: {}, Available: {}",
+                    openPosition.symbol(), additionalCost, cash);
                 return;
             }
+            cash = cash.subtract(additionalCost);
 
-            BigDecimal proceeds = price.multiply(openPosition.quantity());
+            // Calculate new volume-weighted average price
+            BigDecimal oldCost = openPosition.entryPrice().multiply(openPosition.quantity());
+            BigDecimal totalQuantity = openPosition.quantity().add(additionalQuantity);
+            BigDecimal newAveragePrice = oldCost.add(additionalCost)
+                .divide(totalQuantity, 8, RoundingMode.HALF_UP);
 
-            // Add proceeds to cash balance.
+            openPosition = new Position(
+                openPosition.symbol(),
+                openPosition.entryTimestamp(),
+                newAveragePrice,
+                totalQuantity,
+                openPosition.direction()
+            );
+            log.info("SCALED IN {} position for {} @ {}. New Avg Price: {}, New Qty: {}",
+                openPosition.direction(), openPosition.symbol(), price, newAveragePrice, totalQuantity);
+        }
+
+        private void scaleOutPosition(BigDecimal reduceQuantity, BigDecimal price) {
+            BigDecimal quantityToClose = reduceQuantity.min(openPosition.quantity());
+
+            BigDecimal proceeds = price.multiply(quantityToClose);
             cash = cash.add(proceeds);
 
-            // Create a completed trade record.
             Trade trade = new Trade(
                 openPosition.symbol(),
                 openPosition.entryTimestamp(),
-                System.currentTimeMillis(), // Timestamp will be refined later
+                System.currentTimeMillis(), // Placeholder timestamp
                 openPosition.entryPrice(),
                 price,
-                openPosition.quantity(),
+                quantityToClose,
                 openPosition.direction()
             );
             executedTrades.add(trade);
+            log.info("SCALED OUT {} of {} position for {} @ {}. Proceeds: {}",
+                quantityToClose, openPosition.direction(), openPosition.symbol(), price, proceeds);
 
-            log.info("Closed {} position for {} @ {}. Proceeds: {}", openPosition.direction(), symbol, price, proceeds);
-
-            // Clear the open position.
-            openPosition = null;
+            BigDecimal remainingQuantity = openPosition.quantity().subtract(quantityToClose);
+            if (remainingQuantity.compareTo(BigDecimal.ZERO) > 0) {
+                openPosition = new Position(
+                    openPosition.symbol(),
+                    openPosition.entryTimestamp(),
+                    openPosition.entryPrice(),
+                    remainingQuantity,
+                    openPosition.direction()
+                );
+            } else {
+                openPosition = null; // Position is fully closed
+            }
         }
 
         /**
@@ -154,7 +186,6 @@ public class BacktestEngine {
          */
         public BacktestResult calculateResult(Candle lastCandle) {
             BigDecimal finalValue = cash;
-            // If a position is still open at the end, its value is marked-to-market.
             if (openPosition != null && lastCandle != null) {
                 BigDecimal openPositionValue = openPosition.quantity().multiply(lastCandle.close());
                 finalValue = finalValue.add(openPositionValue);
@@ -162,7 +193,7 @@ public class BacktestEngine {
 
             BigDecimal pnl = finalValue.subtract(initialCapital);
             double pnlPercent = 0.0;
-            if (initialCapital.compareTo(BigDecimal.ZERO) != 0) {
+            if (initialCapital.compareTo(BigDecimal.ZERO) > 0) {
                 pnlPercent = pnl.divide(initialCapital, 4, RoundingMode.HALF_UP).doubleValue() * 100;
             }
 
