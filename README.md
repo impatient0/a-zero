@@ -16,9 +16,10 @@ Our core guiding principles are:
 
 ## Core Features
 
+*   **Core Data Models & Interfaces:** A stable, lightweight `a0-core` module provides shared, immutable data models and clear interfaces.
+*   **Realistic Backtesting Engine:** The `a0-backtester` library provides a robust engine for simulating strategies with support for trading costs (fees, slippage) and flexible position management (scaling in/out).
+*   **Data Ingestion Utility:** A simple CLI tool for downloading historical K-line data from exchanges like Binance.
 *   **Pluggable Strategy Interface:** Define your trading logic by implementing a simple `Strategy` interface.
-*   **CLI Backtesting Engine:** A powerful and fast command-line tool to run your strategies against historical data and generate performance reports.
-*   **Data Ingestion Utility:** A simple tool for downloading historical K-line data from exchanges like Binance.
 *   **Clean, Modern Java:** Built with modern Java and a minimal set of dependencies, ready for integration with frameworks like Spring.
 
 ## Build Status & CI
@@ -31,11 +32,15 @@ For detailed logs and a history of all recent builds, please visit the [Actions 
 
 This project is in its early stages. Our planned development path is:
 
-*   [x] **v0.1:** Core backtesting engine and data ingestion utility.
-    *   [x] Data Ingestion Utility
-    *   [ ] CLI Backtesting Engine
-*   [ ] **v0.2:** Integration with exchange Testnet APIs for paper trading.
+*   [x] **v0.1:** Foundational libraries and data ingestion utility.
+    *   [x] `a0-core`: Shared data models and interfaces.
+    *   [x] `a0-data-ingestor`: CLI tool for downloading historical data.
+    *   [x] `a0-backtester`: Core library for strategy simulation.
+*   [ ] **v0.2:** Command-Line Backtester and Strategy Integration.
+    *   [ ] Implement strategy loading and execution within the `BacktestEngine`.
+    *   [ ] Build the `a0-backtester-cli` module to run backtests from the command line using CSV and YAML files.
 *   [ ] **v0.3:** Initial hooks and interfaces for sentiment analysis modules.
+*   [ ] **v0.4:** Integration with exchange Testnet APIs for paper trading.
 *   [ ] **v1.0:** A stable, production-ready framework for live spot trading.
 
 ## Getting Started
