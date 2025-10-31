@@ -52,7 +52,7 @@ public class BacktestEngine {
 
         log.info("Backtest simulation loop completed.");
 
-        Candle lastCandle = historicalData.isEmpty() ? null : historicalData.getLast();
+        Candle lastCandle = historicalData.isEmpty() ? null : historicalData.get(historicalData.size() - 1);
         return context.calculateResult(lastCandle);
     }
 
@@ -65,15 +65,43 @@ public class BacktestEngine {
      */
     private static class BacktestTradingContext implements TradingContext {
 
+        /**
+         * The standard scale for all price-related calculations.
+         */
         private static final int PRICE_SCALE = 8;
 
+        /**
+         * The starting capital for the backtest.
+         */
         private final BigDecimal initialCapital;
+        /**
+         * The fee percentage applied to each trade's value.
+         */
         private final BigDecimal tradingFeePercentage;
+        /**
+         * The slippage percentage applied to the execution price.
+         */
         private final BigDecimal slippagePercentage;
+        /**
+         * The current cash balance available for trading.
+         */
         private BigDecimal cash;
+        /**
+         * The currently held position. The simulation supports only one open position at a time.
+         */
         private Position openPosition;
+        /**
+         * A list of all trades that have been closed during the simulation.
+         */
         private final List<Trade> executedTrades = new ArrayList<>();
 
+        /**
+         * Constructs a new BacktestTradingContext.
+         *
+         * @param initialCapital       The starting capital for the backtest.
+         * @param tradingFeePercentage The fee applied to each trade.
+         * @param slippagePercentage   The slippage applied to each trade.
+         */
         public BacktestTradingContext(BigDecimal initialCapital, BigDecimal tradingFeePercentage, BigDecimal slippagePercentage) {
             this.initialCapital = initialCapital;
             this.cash = initialCapital;
@@ -81,6 +109,12 @@ public class BacktestEngine {
             this.slippagePercentage = slippagePercentage;
         }
 
+        /**
+         * Retrieves the currently open position for a specific symbol.
+         *
+         * @param symbol The symbol to check for an open position.
+         * @return An {@link Optional} containing the {@link Position} if one exists, otherwise an empty Optional.
+         */
         @Override
         public Optional<Position> getOpenPosition(String symbol) {
             return (openPosition != null && Objects.equals(openPosition.symbol(), symbol))
@@ -88,6 +122,19 @@ public class BacktestEngine {
                 : Optional.empty();
         }
 
+        /**
+         * Submits a trading order.
+         * <p>
+         * This method acts as the primary interface for the strategy to interact with the
+         * simulated market. It handles the logic for opening a new position, adding to an
+         * existing one (scaling in), or reducing/closing an existing one (scaling out).
+         * It enforces a single-open-position rule.
+         *
+         * @param symbol    The symbol of the asset to trade.
+         * @param direction The direction of the trade (LONG or SHORT).
+         * @param quantity  The amount of the asset to trade.
+         * @param price     The price at which to attempt the trade.
+         */
         @Override
         public void submitOrder(String symbol, TradeDirection direction, BigDecimal quantity, BigDecimal price) {
             if (openPosition == null) {
@@ -104,6 +151,18 @@ public class BacktestEngine {
             }
         }
 
+        /**
+         * Handles the logic for opening a new position.
+         * <p>
+         * It calculates the execution price including slippage, deducts the total cost
+         * (including fees) from the cash balance, and creates the new {@link Position}
+         * object. It will not execute if funds are insufficient.
+         *
+         * @param symbol    The symbol of the asset.
+         * @param direction The direction of the position.
+         * @param quantity  The quantity to open.
+         * @param price     The requested entry price.
+         */
         private void openNewPosition(String symbol, TradeDirection direction, BigDecimal quantity, BigDecimal price) {
             BigDecimal executionPrice = applySlippage(price, direction);
             BigDecimal value = executionPrice.multiply(quantity);
@@ -126,6 +185,16 @@ public class BacktestEngine {
             log.info("OPENED {} position for {} @ exec. price {} (orig. price {}).", direction, symbol, executionPrice, price);
         }
 
+        /**
+         * Increases the size of an existing position (scales in).
+         * <p>
+         * This method calculates the cost of the additional quantity, applies fees and
+         * slippage, and updates the position's average entry price and total quantity.
+         * It will not execute if funds are insufficient to cover the addition.
+         *
+         * @param additionalQuantity The quantity to add to the position.
+         * @param price              The price for the additional quantity.
+         */
         private void scaleInPosition(BigDecimal additionalQuantity, BigDecimal price) {
             TradeDirection direction = openPosition.direction();
             BigDecimal executionPrice = applySlippage(price, direction);
@@ -153,6 +222,17 @@ public class BacktestEngine {
             log.info("SCALED IN {} position for {} @ exec. price {}. New Avg Price: {}", direction, openPosition.symbol(), executionPrice, newAveragePrice);
         }
 
+        /**
+         * Reduces the size of an existing position or closes it entirely (scales out).
+         * <p>
+         * It calculates the value of the closing portion of the trade, including slippage
+         * and fees, and updates the cash balance accordingly. A {@link Trade} record is
+         * created for the closed portion. If the entire position is closed, it is removed.
+         *
+         * @param reduceQuantity The quantity to close. If this is greater than or equal
+         *                       to the position size, the entire position is closed.
+         * @param price          The price for the closing trade.
+         */
         private void scaleOutPosition(BigDecimal reduceQuantity, BigDecimal price) {
             TradeDirection closeDirection = (openPosition.direction() == TradeDirection.LONG) ? TradeDirection.SHORT : TradeDirection.LONG;
             BigDecimal executionPrice = applySlippage(price, closeDirection);
@@ -184,6 +264,16 @@ public class BacktestEngine {
             }
         }
 
+        /**
+         * Applies slippage to a given price based on the order direction.
+         * <p>
+         * For a LONG order, slippage increases the execution price. For a SHORT order, it
+         * decreases the execution price, simulating a worse fill.
+         *
+         * @param price          The original requested price.
+         * @param orderDirection The direction of the order (LONG or SHORT).
+         * @return The price adjusted for slippage.
+         */
         private BigDecimal applySlippage(BigDecimal price, TradeDirection orderDirection) {
             if (slippagePercentage.compareTo(BigDecimal.ZERO) == 0) {
                 return price;
