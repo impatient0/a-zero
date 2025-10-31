@@ -37,4 +37,23 @@ public class BacktestConfig {
      */
     @NonNull
     Object strategyDefinition;
+
+    /**
+     * The trading fee charged by the exchange, expressed as a percentage.
+     * For example, a 0.1% fee should be provided as {@code new BigDecimal("0.001")}.
+     * Defaults to zero if not specified.
+     */
+    @NonNull
+    @Builder.Default
+    BigDecimal tradingFeePercentage = BigDecimal.ZERO;
+
+    /**
+     * The estimated price slippage, expressed as a percentage.
+     * This simulates the difference between the expected trade price and the actual
+     * execution price. For example, 0.05% slippage should be provided as
+     * {@code new BigDecimal("0.0005")}. Defaults to zero if not specified.
+     */
+    @NonNull
+    @Builder.Default
+    BigDecimal slippagePercentage = BigDecimal.ZERO;
 }
