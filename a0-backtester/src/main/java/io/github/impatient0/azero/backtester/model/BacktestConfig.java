@@ -1,6 +1,7 @@
 package io.github.impatient0.azero.backtester.model;
 
 import io.github.impatient0.azero.core.model.Candle;
+import io.github.impatient0.azero.core.strategy.Strategy;
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.Value;
@@ -32,11 +33,12 @@ public class BacktestConfig {
     BigDecimal initialCapital;
 
     /**
-     * A placeholder for the strategy configuration.
-     * This will be defined more concretely in a future task (e.g., holding parsed YAML data).
+     * An instance of the {@link Strategy} implementation to be executed.
+     * The backtest engine will call the {@code onCandle} method of this object for each
+     * candle in the historical data.
      */
     @NonNull
-    Object strategyDefinition;
+    Strategy strategy;
 
     /**
      * The trading fee charged by the exchange, expressed as a percentage.

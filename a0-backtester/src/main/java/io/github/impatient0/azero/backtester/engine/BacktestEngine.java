@@ -6,6 +6,7 @@ import io.github.impatient0.azero.core.model.Candle;
 import io.github.impatient0.azero.core.model.Position;
 import io.github.impatient0.azero.core.model.Trade;
 import io.github.impatient0.azero.core.model.TradeDirection;
+import io.github.impatient0.azero.core.strategy.Strategy;
 import io.github.impatient0.azero.core.strategy.TradingContext;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,7 +34,10 @@ public class BacktestEngine {
      * @return A {@link BacktestResult} object summarizing the performance of the simulation.
      */
     public BacktestResult run(BacktestConfig config) {
+        Strategy strategy = config.getStrategy();
+
         log.info("Starting backtest run with initial capital: {}", config.getInitialCapital());
+        log.info("Executing strategy: {}", strategy.getClass().getSimpleName());
         log.info("Simulation costs: Fee={}%, Slippage={}%",
             config.getTradingFeePercentage().multiply(BigDecimal.valueOf(100)),
             config.getSlippagePercentage().multiply(BigDecimal.valueOf(100)));
@@ -46,8 +50,7 @@ public class BacktestEngine {
         List<Candle> historicalData = config.getHistoricalData();
 
         for (Candle candle : historicalData) {
-            // Future task: Call the strategy here.
-            // strategy.onCandle(candle, context);
+            strategy.onCandle(candle, context);
         }
 
         log.info("Backtest simulation loop completed.");
