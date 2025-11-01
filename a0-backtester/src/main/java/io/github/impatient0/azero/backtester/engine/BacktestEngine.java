@@ -185,7 +185,8 @@ public class BacktestEngine {
             // NOTE: The timestamp here is a placeholder. A future task will involve passing the
             // current candle's timestamp through the context for accurate record-keeping.
             openPosition = new Position(symbol, System.currentTimeMillis(), executionPrice, quantity, direction);
-            log.info("OPENED {} position for {} @ exec. price {} (orig. price {}).", direction, symbol, executionPrice, price);
+            log.info("OPENED {} {} position for {} @ exec. price {} (orig. price {}).",
+                direction, quantity, symbol, executionPrice, price);
         }
 
         /**
