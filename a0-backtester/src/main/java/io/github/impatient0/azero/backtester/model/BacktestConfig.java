@@ -36,6 +36,12 @@ public class BacktestConfig {
      * An instance of the {@link Strategy} implementation to be executed.
      * The backtest engine will call the {@code onCandle} method of this object for each
      * candle in the historical data.
+     * <p>
+     * <b>IMPORTANT:</b> Strategy implementations are typically stateful. The engine
+     * will mutate the state of the provided strategy instance during a run. Therefore,
+     * a new instance of the strategy must be provided for each backtest run to ensure
+     * simulation correctness. Do not reuse strategy instances across multiple calls
+     * to {@code BacktestEngine.run()}.
      */
     @NonNull
     Strategy strategy;

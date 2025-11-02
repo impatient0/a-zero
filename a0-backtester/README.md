@@ -55,6 +55,13 @@ System.out.println("Total P/L: " + result.getPnl() + " (" + result.getPnlPercent
 System.out.println("Total Trades: " + result.getTotalTrades());
 ```
 
+> [!IMPORTANT]
+> **A Note on Strategy State**
+>
+> Implementations of the `Strategy` interface are typically **stateful** (e.g., they track indicators or whether an order has been sent). The backtest engine will mutate the internal state of the provided strategy instance during a run.
+>
+> To ensure correct and repeatable results, **you must provide a new instance of your strategy for each call to `engine.run()`**. Reusing the same strategy instance across multiple backtests will lead to incorrect behavior.
+
 ## Future Work & Backlog
 
 This library provides a strong foundation, but several features are planned for future development to enhance its capabilities.
