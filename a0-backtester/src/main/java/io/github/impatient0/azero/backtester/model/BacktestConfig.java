@@ -1,5 +1,6 @@
 package io.github.impatient0.azero.backtester.model;
 
+import io.github.impatient0.azero.core.model.AccountMode;
 import io.github.impatient0.azero.core.model.Candle;
 import io.github.impatient0.azero.core.strategy.Strategy;
 import lombok.Builder;
@@ -47,10 +48,22 @@ public class BacktestConfig {
     Strategy strategy;
 
     /**
-     * The margin leverage to use for calculating collateral on SHORT positions.
+     * The account mode to simulate, determining the rules for order execution.
+     * <p>
+     * Defaults to {@link AccountMode#SPOT_ONLY} for maximum safety. In this mode,
+     * shorting is disallowed and will cause an exception. To enable margin trading
+     * simulation, this must be explicitly set to {@link AccountMode#MARGIN}.
+     */
+    @NonNull
+    @Builder.Default
+    AccountMode accountMode = AccountMode.SPOT_ONLY;
+
+    /**
+     * The margin leverage to use for calculating collateral on positions in MARGIN mode.
      * For example, a value of 5 represents 5x leverage. A value of 1 represents
      * no leverage, meaning 100% of the position's value is locked as collateral.
-     * This parameter is ignored for LONG positions. Defaults to 1.
+     * <p>
+     * This parameter is <b>ignored</b> in {@link AccountMode#SPOT_ONLY}. Defaults to 1.
      */
     @Builder.Default
     int marginLeverage = 1;
