@@ -4,6 +4,7 @@ import io.github.impatient0.azero.core.model.Position;
 import io.github.impatient0.azero.core.model.TradeDirection;
 
 import java.math.BigDecimal;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -18,15 +19,21 @@ public interface TradingContext {
 
     /**
      * Retrieves the currently open position for a given symbol, if one exists.
-     * <p>
-     * A strategy should call this method to check its current state before submitting
-     * an order.
+     * This is the primary method for checking the state of a single asset.
      *
-     * @param symbol The trading symbol (e.g., "BTCUSDT") to check for an open position.
+     * @param symbol The trading symbol (e.g., "BTCUSDT") to check.
      * @return an {@link Optional} containing the current {@link Position} if one is open,
-     * or an empty Optional if there is no open position for the symbol.
+     * or an empty Optional otherwise.
      */
     Optional<Position> getOpenPosition(String symbol);
+
+    /**
+     * Retrieves an unmodifiable view of all currently open positions.
+     * This is useful for portfolio-level analysis and logic.
+     *
+     * @return An unmodifiable Map of symbol to {@link Position}.
+     */
+    Map<String, Position> getOpenPositions();
 
     /**
      * Submits an order to the trading engine to modify a position.
@@ -47,5 +54,14 @@ public interface TradingContext {
      * @param price     The price at which to execute the order.
      */
     void submitOrder(String symbol, TradeDirection direction, BigDecimal quantity, BigDecimal price);
+
+    /**
+     * Updates the context with the latest market prices for all relevant assets.
+     * This is called by the execution engine on each tick *before* the strategy's
+     * onCandle method is called.
+     *
+     * @param currentPrices A map of asset symbols to their current market prices.
+     */
+    void updateCurrentPrices(Map<String, BigDecimal> currentPrices);
 
 }

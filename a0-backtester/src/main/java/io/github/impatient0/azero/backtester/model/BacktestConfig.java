@@ -9,6 +9,7 @@ import lombok.Value;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Configuration object containing all the necessary parameters to run a backtest.
@@ -20,11 +21,12 @@ import java.util.List;
 public class BacktestConfig {
 
     /**
-     * A list of {@link Candle} objects, representing the market data for the backtest.
-     * Typically, this list should be sorted by timestamp in ascending order.
+     * A map of historical data streams, where the key is the trading symbol
+     * (e.g., "BTCUSDT") and the value is a list of {@link Candle} objects for that symbol.
+     * The simulation will process these streams in chronological order.
      */
     @NonNull
-    List<Candle> historicalData;
+    Map<String, List<Candle>> historicalData;
 
     /**
      * The starting cash balance for the simulation.

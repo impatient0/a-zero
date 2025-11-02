@@ -9,10 +9,17 @@ import java.math.BigDecimal;
  *
  * @param symbol         The trading pair symbol (e.g., "BTCUSDT").
  * @param entryTimestamp The timestamp of the entry, in milliseconds since the Unix epoch.
- * @param entryPrice     The price at which the position was opened.
+ * @param entryPrice     The volume-weighted average price at which the position was entered.
  * @param quantity       The amount of the asset held in the position.
  * @param direction      The direction of the position (LONG or SHORT).
- * @param collateral     The total amount of cash collateral locked for this position.
+ * @param costBasis      The total value locked or paid to establish this position. The meaning
+ *                       of this field depends on the {@link AccountMode}:
+ *                       <ul>
+ *                         <li>In {@link AccountMode#SPOT_ONLY}, this is the total cash value
+ *                             (including fees) paid to acquire the assets.</li>
+ *                         <li>In {@link AccountMode#MARGIN}, this is the initial margin (equity)
+ *                             locked to open the position.</li>
+ *                       </ul>
  */
 public record Position(
     String symbol,
@@ -20,5 +27,5 @@ public record Position(
     BigDecimal entryPrice,
     BigDecimal quantity,
     TradeDirection direction,
-    BigDecimal collateral
+    BigDecimal costBasis
 ) {}
