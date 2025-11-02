@@ -12,11 +12,13 @@ import java.math.BigDecimal;
  * @param entryPrice     The price at which the position was opened.
  * @param quantity       The amount of the asset held in the position.
  * @param direction      The direction of the position (LONG or SHORT).
+ * @param collateral     The total amount of cash collateral locked for this position.
  */
 public record Position(
     String symbol,
     long entryTimestamp,
     BigDecimal entryPrice,
     BigDecimal quantity,
-    TradeDirection direction
+    TradeDirection direction,
+    BigDecimal collateral
 ) {}

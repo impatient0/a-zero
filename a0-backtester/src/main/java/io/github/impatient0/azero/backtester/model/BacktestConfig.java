@@ -47,6 +47,15 @@ public class BacktestConfig {
     Strategy strategy;
 
     /**
+     * The margin leverage to use for calculating collateral on SHORT positions.
+     * For example, a value of 5 represents 5x leverage. A value of 1 represents
+     * no leverage, meaning 100% of the position's value is locked as collateral.
+     * This parameter is ignored for LONG positions. Defaults to 1.
+     */
+    @Builder.Default
+    int marginLeverage = 1;
+
+    /**
      * The trading fee charged by the exchange, expressed as a percentage.
      * For example, a 0.1% fee should be provided as {@code new BigDecimal("0.001")}.
      * Defaults to zero if not specified.

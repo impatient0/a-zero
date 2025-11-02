@@ -45,7 +45,8 @@ public class BacktestEngine {
         var context = new BacktestTradingContext(
             config.getInitialCapital(),
             config.getTradingFeePercentage(),
-            config.getSlippagePercentage()
+            config.getSlippagePercentage(),
+            config.getMarginLeverage()
         );
         List<Candle> historicalData = config.getHistoricalData();
 
@@ -86,6 +87,10 @@ public class BacktestEngine {
          */
         private final BigDecimal slippagePercentage;
         /**
+         *  Margin leverage value used for SHORT positions.
+         */
+        private final int marginLeverage;
+        /**
          * The current cash balance available for trading.
          */
         private BigDecimal cash;
@@ -102,14 +107,16 @@ public class BacktestEngine {
          * Constructs a new BacktestTradingContext.
          *
          * @param initialCapital       The starting capital for the backtest.
+         * @param marginLeverage       Margin leverage value.
          * @param tradingFeePercentage The fee applied to each trade.
          * @param slippagePercentage   The slippage applied to each trade.
          */
-        public BacktestTradingContext(BigDecimal initialCapital, BigDecimal tradingFeePercentage, BigDecimal slippagePercentage) {
+        public BacktestTradingContext(BigDecimal initialCapital, BigDecimal tradingFeePercentage, BigDecimal slippagePercentage, int marginLeverage) {
             this.initialCapital = initialCapital;
             this.cash = initialCapital;
             this.tradingFeePercentage = tradingFeePercentage;
             this.slippagePercentage = slippagePercentage;
+            this.marginLeverage = Math.max(1, marginLeverage);
         }
 
         /**
@@ -178,26 +185,31 @@ public class BacktestEngine {
                     return;
                 }
                 cash = cash.subtract(totalCost);
+                openPosition = new Position(symbol, System.currentTimeMillis(), executionPrice, quantity, direction, totalCost);
             } else { // SHORT
-                BigDecimal proceeds = value.subtract(fee);
-                cash = cash.add(proceeds);
+                BigDecimal collateralRequired = value.divide(BigDecimal.valueOf(marginLeverage), PRICE_SCALE, RoundingMode.HALF_UP);
+                BigDecimal totalCost = collateralRequired.add(fee);
+                if (cash.compareTo(totalCost) < 0) {
+                    log.warn("Insufficient margin to open SHORT position for {}. Required: {}, Available: {}", symbol, totalCost, cash);
+                    return;
+                }
+                cash = cash.subtract(totalCost);
+                openPosition = new Position(symbol, System.currentTimeMillis(), executionPrice, quantity, direction, collateralRequired);
             }
-            // NOTE: The timestamp here is a placeholder. A future task will involve passing the
-            // current candle's timestamp through the context for accurate record-keeping.
-            openPosition = new Position(symbol, System.currentTimeMillis(), executionPrice, quantity, direction);
             log.info("OPENED {} {} position for {} @ exec. price {} (orig. price {}).",
                 direction, quantity, symbol, executionPrice, price);
         }
 
         /**
-         * Increases the size of an existing position (scales in).
+         * Handles the logic for scaling into an existing position.
          * <p>
-         * This method calculates the cost of the additional quantity, applies fees and
-         * slippage, and updates the position's average entry price and total quantity.
-         * It will not execute if funds are insufficient to cover the addition.
+         * For both LONG and SHORT positions, it calculates a new volume-weighted
+         * average price. It deducts the appropriate cost (full value for LONGs,
+         * only collateral for SHORTs) and updates the total collateral locked for
+         * the position.
          *
          * @param additionalQuantity The quantity to add to the position.
-         * @param price              The price for the additional quantity.
+         * @param price              The price at which to add to the position.
          */
         private void scaleInPosition(BigDecimal additionalQuantity, BigDecimal price) {
             TradeDirection direction = openPosition.direction();
@@ -205,25 +217,42 @@ public class BacktestEngine {
             BigDecimal additionalValue = executionPrice.multiply(additionalQuantity);
             BigDecimal fee = additionalValue.multiply(tradingFeePercentage);
 
-            BigDecimal oldTotalValue = openPosition.entryPrice().multiply(openPosition.quantity());
             BigDecimal newTotalQuantity = openPosition.quantity().add(additionalQuantity);
+            BigDecimal oldTotalValue = openPosition.entryPrice().multiply(openPosition.quantity());
+            BigDecimal newAveragePrice = oldTotalValue.add(additionalValue)
+                .divide(newTotalQuantity, PRICE_SCALE, RoundingMode.HALF_UP);
+
+            BigDecimal newTotalCollateral;
 
             if (direction == TradeDirection.LONG) {
-                BigDecimal totalCost = additionalValue.add(fee);
+                BigDecimal additionalCost = additionalValue.add(fee);
+                if (cash.compareTo(additionalCost) < 0) {
+                    log.warn("Insufficient funds to scale in LONG position. Required: {}, Available: {}", additionalCost, cash);
+                    return;
+                }
+                cash = cash.subtract(additionalCost);
+                newTotalCollateral = openPosition.collateral().add(additionalCost);
+            } else { // SHORT
+                BigDecimal additionalCollateral = additionalValue.divide(BigDecimal.valueOf(marginLeverage), PRICE_SCALE, RoundingMode.HALF_UP);
+                BigDecimal totalCost = additionalCollateral.add(fee);
                 if (cash.compareTo(totalCost) < 0) {
-                    log.warn("Insufficient funds to scale in LONG position. Required: {}, Available: {}", totalCost, cash);
+                    log.warn("Insufficient margin to scale in SHORT position. Required: {}, Available: {}", totalCost, cash);
                     return;
                 }
                 cash = cash.subtract(totalCost);
-            } else { // SHORT
-                BigDecimal proceeds = additionalValue.subtract(fee);
-                cash = cash.add(proceeds);
+                newTotalCollateral = openPosition.collateral().add(additionalCollateral);
             }
 
-            BigDecimal newAveragePrice = oldTotalValue.add(additionalValue)
-                .divide(newTotalQuantity, PRICE_SCALE, RoundingMode.HALF_UP);
-            openPosition = new Position(openPosition.symbol(), openPosition.entryTimestamp(), newAveragePrice, newTotalQuantity, direction);
-            log.info("SCALED IN {} position for {} @ exec. price {}. New Avg Price: {}", direction, openPosition.symbol(), executionPrice, newAveragePrice);
+            openPosition = new Position(
+                openPosition.symbol(),
+                openPosition.entryTimestamp(),
+                newAveragePrice,
+                newTotalQuantity,
+                direction,
+                newTotalCollateral
+            );
+            log.info("SCALED IN {} {} position for {} @ exec. price {}. New Avg Price: {}",
+                direction, additionalQuantity, openPosition.symbol(), executionPrice, newAveragePrice);
         }
 
         /**
@@ -231,7 +260,9 @@ public class BacktestEngine {
          * <p>
          * It calculates the value of the closing portion of the trade, including slippage
          * and fees, and updates the cash balance accordingly. A {@link Trade} record is
-         * created for the closed portion. If the entire position is closed, it is removed.
+         * created for the closed portion. For a partial close, the state of the remaining
+         * position (including its collateral) is correctly updated. If the entire position
+         * is closed, it is removed.
          *
          * @param reduceQuantity The quantity to close. If this is greater than or equal
          *                       to the position size, the entire position is closed.
@@ -244,16 +275,21 @@ public class BacktestEngine {
             BigDecimal value = executionPrice.multiply(quantityToClose);
             BigDecimal fee = value.multiply(tradingFeePercentage);
 
-            if (closeDirection == TradeDirection.SHORT) { // Closing a LONG
+            if (openPosition.direction() == TradeDirection.LONG) {
                 BigDecimal proceeds = value.subtract(fee);
                 cash = cash.add(proceeds);
             } else { // Closing a SHORT
-                BigDecimal totalCost = value.add(fee);
-                if (cash.compareTo(totalCost) < 0) {
-                    log.warn("Insufficient funds to close SHORT position. Required: {}, Available: {}", totalCost, cash);
-                    return;
-                }
-                cash = cash.subtract(totalCost);
+                BigDecimal collateralToRelease = calculateProportionalValue(
+                    openPosition.collateral(),
+                    quantityToClose,
+                    openPosition.quantity()
+                );
+
+                BigDecimal pnl = openPosition.entryPrice().subtract(executionPrice)
+                    .multiply(quantityToClose)
+                    .subtract(fee);
+
+                cash = cash.add(collateralToRelease).add(pnl);
             }
 
             Trade trade = new Trade(openPosition.symbol(), openPosition.entryTimestamp(), System.currentTimeMillis(), openPosition.entryPrice(), executionPrice, quantityToClose, openPosition.direction());
@@ -261,21 +297,39 @@ public class BacktestEngine {
             log.info("SCALED OUT {} of {} position for {} @ exec. price {}.", quantityToClose, openPosition.direction(), openPosition.symbol(), executionPrice);
 
             BigDecimal remainingQuantity = openPosition.quantity().subtract(quantityToClose);
+
             if (remainingQuantity.compareTo(BigDecimal.ZERO) > 0) {
-                openPosition = new Position(openPosition.symbol(), openPosition.entryTimestamp(), openPosition.entryPrice(), remainingQuantity, openPosition.direction());
+                BigDecimal remainingCollateral = calculateProportionalValue(
+                    openPosition.collateral(),
+                    remainingQuantity,
+                    openPosition.quantity()
+                );
+                openPosition = new Position(openPosition.symbol(), openPosition.entryTimestamp(), openPosition.entryPrice(), remainingQuantity, openPosition.direction(), remainingCollateral);
             } else {
                 openPosition = null;
             }
         }
 
+        private BigDecimal calculateProportionalValue(BigDecimal totalValue, BigDecimal partQuantity, BigDecimal wholeQuantity) {
+            if (wholeQuantity.compareTo(BigDecimal.ZERO) == 0) {
+                return BigDecimal.ZERO;
+            }
+            return totalValue.multiply(partQuantity).divide(wholeQuantity, PRICE_SCALE, RoundingMode.HALF_UP);
+        }
+
         /**
-         * Applies slippage to a given price based on the order direction.
+         * Applies slippage to a given price to simulate a more realistic execution cost.
          * <p>
-         * For a LONG order, slippage increases the execution price. For a SHORT order, it
-         * decreases the execution price, simulating a worse fill.
+         * Slippage models the effect of crossing the bid-ask spread, ensuring the execution
+         * price is always less favorable than the requested price. The behavior is determined
+         * by the market action (buying or selling):
+         * <ul>
+         *   <li>For a <b>BUY</b> order ({@code orderDirection == TradeDirection.LONG}), slippage <b>increases</b> the execution price.</li>
+         *   <li>For a <b>SELL</b> order ({@code orderDirection == TradeDirection.SHORT}), slippage <b>decreases</b> the execution price.</li>
+         * </ul>
          *
-         * @param price          The original requested price.
-         * @param orderDirection The direction of the order (LONG or SHORT).
+         * @param price          The original requested price (e.g., the candle's close price).
+         * @param orderDirection The direction of the order, which dictates whether it's a BUY or a SELL action.
          * @return The price adjusted for slippage.
          */
         private BigDecimal applySlippage(BigDecimal price, TradeDirection orderDirection) {
@@ -299,32 +353,35 @@ public class BacktestEngine {
         public BacktestResult calculateResult(Candle lastCandle) {
             BigDecimal finalValue = cash;
 
-            // If a position is still open at the end, its value is marked-to-market,
-            // including the simulated cost of closing it.
             if (openPosition != null && lastCandle != null) {
                 log.info("An open {} position for {} exists at the end of the backtest. Calculating mark-to-market value.",
                     openPosition.direction(), openPosition.symbol());
 
-                // Determine the direction and price of the theoretical closing trade.
                 TradeDirection closingDirection = (openPosition.direction() == TradeDirection.LONG) ? TradeDirection.SHORT : TradeDirection.LONG;
                 BigDecimal liquidationPrice = applySlippage(lastCandle.close(), closingDirection);
-
                 BigDecimal grossValue = liquidationPrice.multiply(openPosition.quantity());
                 BigDecimal fee = grossValue.multiply(tradingFeePercentage);
 
+                BigDecimal tradePnl;
+
                 if (openPosition.direction() == TradeDirection.LONG) {
-                    // For a LONG position, the final value is increased by the proceeds from selling it.
                     BigDecimal netProceeds = grossValue.subtract(fee);
                     finalValue = finalValue.add(netProceeds);
-                    log.info("Closing LONG position: Liquidation Price={}, Proceeds={}, Fee={}, Net Proceeds={}",
-                        liquidationPrice, grossValue, fee, netProceeds);
+                    // P/L of this trade = What we got (netProceeds) - What we paid (collateral)
+                    tradePnl = netProceeds.subtract(openPosition.collateral());
                 } else { // SHORT
-                    // For a SHORT position, the final value is decreased by the cost of buying it back.
-                    BigDecimal totalCost = grossValue.add(fee);
-                    finalValue = finalValue.subtract(totalCost);
-                    log.info("Closing SHORT position: Liquidation Price={}, Cost={}, Fee={}, Total Cost={}",
-                        liquidationPrice, grossValue, fee, totalCost);
+                    // P/L of this trade = (Entry Value - Exit Value) - Fee
+                    BigDecimal entryValue = openPosition.entryPrice().multiply(openPosition.quantity());
+                    tradePnl = entryValue.subtract(grossValue).subtract(fee);
+                    // Final value = Current Cash + Returned Collateral + P/L
+                    finalValue = cash.add(openPosition.collateral()).add(tradePnl);
                 }
+
+                log.info("Liquidating final {} position: Price={}, Trade P/L={}, Final Portfolio Value={}",
+                    openPosition.direction(),
+                    liquidationPrice.setScale(2, RoundingMode.HALF_UP),
+                    tradePnl.setScale(2, RoundingMode.HALF_UP),
+                    finalValue.setScale(2, RoundingMode.HALF_UP));
             }
 
             BigDecimal pnl = finalValue.subtract(initialCapital);
@@ -333,7 +390,10 @@ public class BacktestEngine {
                 : 0.0;
 
             log.info("Backtest finished. Initial Capital: {}, Final Value: {}, P/L: {} ({}%)",
-                initialCapital, finalValue.setScale(2, RoundingMode.HALF_UP), pnl.setScale(2, RoundingMode.HALF_UP), String.format("%.2f", pnlPercent));
+                initialCapital.setScale(2, RoundingMode.HALF_UP),
+                finalValue.setScale(2, RoundingMode.HALF_UP),
+                pnl.setScale(2, RoundingMode.HALF_UP),
+                String.format("%.2f", pnlPercent));
 
             return BacktestResult.builder()
                 .finalValue(finalValue)
