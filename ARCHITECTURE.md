@@ -70,24 +70,23 @@ This project follows an "Open Core" model, separating the reusable framework fro
 
 ### 4.1 Strategy Definition YAML (`strategy.yaml`)
 ```yaml
-strategy_name: "Unique name for this strategy run"
-asset: "BTC/USDT"
-timeframe: "1h"
+strategy_name: "EMA Cross with RSI Filter"
 
-# Defines the rules for entering a position
 entry_rules:
-  # ... (To be defined in the next step)
-
-# Defines the rules for exiting a position
+  - indicator: "EMA_Cross"
+    short_period: 50
+    long_period: 200
+    condition: "crosses_above"
+  - indicator: "RSI"
+    period: 14
+    condition: "less_than"
+    value: 50
+    
 exit_rules:
-  type: "Fixed_Risk_Reward"
-  risk_reward_ratio: 1.5
-  stop_loss_percentage: 2.0
-
-# Defines the costs associated with trading
-simulation_parameters:
-  trading_fee_percentage: 0.1
-  slippage_percentage: 0.05
+  - type: "StopLoss"
+    percentage: 2.0
+  - type: "TakeProfit"
+    percentage: 4.0
 ```
 
 ### 4.2 Core Java Interfaces
