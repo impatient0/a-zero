@@ -17,24 +17,25 @@ This project follows an "Open Core" model, separating the reusable framework fro
 
 ### MVP Architecture
 - **Core Modules (Public):**
-    1.  `a0-core`: Defines the essential public interfaces (e.g., `Strategy`) and data models (e.g., `Candle`). A lightweight library with minimal dependencies.
+    1.  `a0-core`: Defines the essential public interfaces (`Strategy`, `TradingContext`) and data models (`Candle`). A lightweight library with minimal dependencies.
     2.  `a0-data-ingestor`: A CLI tool that fetches and stores historical market data.
-    3.  `a0-backtester`: A library containing the core backtesting engine for simulating strategies.
-    4.  `a0-backtester-cli`: A command-line tool that uses `a0-backtester` to run simulations based on data and configuration files.
+    3.  `a0-backtester`: A library containing the core backtesting engine for simulating `Strategy` instances. This module has no knowledge of how strategies are defined (e.g., via YAML or code).
+    4.  `a0-strategy-rules-engine`: A library that can parse declarative strategy definitions (e.g., from a YAML file) and construct an executable `Strategy` object. This module contains all technical analysis library dependencies.
+    5.  `a0-backtester-cli`: A command-line tool that consumes all the above libraries to provide a user-facing backtesting application.
 - **Communication:**
     - The `data-ingestor` produces CSV files.
     - The `backtester-cli` will consume CSV files and Strategy Definition files (YAML), and execute logic defined in classes that implement the `Strategy` interface.
 
 ## 3. Module Specifications
 
-### 3.1 Module: `a0-core`
+### 3.1 Module: `a0-core` (Library)
 - **Status:** Implemented in v0.1
 - **Responsibility:** To provide the foundational data models and interfaces shared across the entire system. It is a non-executable library with near-zero dependencies to ensure stability.
 - **Key Contents:**
     - **Models:** `Candle`, `Position`, `Trade`, `TradeDirection`.
     - **Interfaces:** `Strategy`, `TradingContext`.
 
-### 3.2 Module: `a0-data-ingestor`
+### 3.2 Module: `a0-data-ingestor` (Application)
 - **Status:** Implemented in v0.1
 - **Documentation:** See Ingestor's [README.md](a0-data-ingestor/README.md)
 - **Responsibility:** To fetch historical K-line (candle) data for a given crypto spot pair from the Binance public API and save it to a local CSV file.
@@ -52,6 +53,18 @@ This project follows an "Open Core" model, separating the reusable framework fro
     - Path to a data CSV file (produced by `data-ingestor`).
     - Path to a strategy definition YAML file.
 - **Outputs:** A performance summary printed to the console.
+
+### 3.4 Module: `a0-strategy-rules-engine` (Library)
+- **Status:** Planned for v0.2
+- **Responsibility:** To parse declarative, rule-based strategy definitions (from YAML files) and construct an executable `Strategy` object. It encapsulates all logic related to technical indicators and their calculation.
+- **Inputs:** A configuration file (e.g., `strategy.yaml`).
+- **Outputs:** An instantiated Java object that implements the `io.github.impatient0.azero.core.strategy.Strategy` interface.
+
+### 3.5 Module: `a0-backtester-cli` (Application)
+- **Status:** Planned for v0.2
+- **Responsibility:** To provide a user-facing command-line interface for the backtester. It wires together the backtesting engine and the strategy rules engine to run a full simulation.
+- **Inputs:** Command-line arguments specifying paths to data files and strategy definition files.
+- **Outputs:** A formatted performance summary printed to the console.
 
 ## 4. Data Contracts & Core Interfaces
 

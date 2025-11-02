@@ -37,8 +37,9 @@ This project is in its early stages. Our planned development path is:
     *   [x] `a0-data-ingestor`: CLI tool for downloading historical data.
     *   [x] `a0-backtester`: Core library for strategy simulation.
 *   [ ] **v0.2:** Command-Line Backtester and Strategy Integration.
-    *   [x] Implement strategy loading and execution within the `BacktestEngine`.
-    *   [ ] Build the `a0-backtester-cli` module to run backtests from the command line using CSV and YAML files.
+    *   [x] `a0-backtester`: Implement strategy loading and execution within the `BacktestEngine`.
+    *   [ ] `a0-strategy-rules-engine`: Build the engine to parse YAML-based strategies.
+    *   [ ] `a0-backtester-cli`: Build the command-line application to run backtests.
 *   [ ] **v0.3:** Initial hooks and interfaces for sentiment analysis modules.
 *   [ ] **v0.4:** Integration with exchange Testnet APIs for paper trading.
 *   [ ] **v1.0:** A stable, production-ready framework for live spot trading.
