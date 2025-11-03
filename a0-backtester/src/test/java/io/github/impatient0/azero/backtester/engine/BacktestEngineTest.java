@@ -7,7 +7,9 @@ import io.github.impatient0.azero.backtester.util.TestDataFactory;
 import io.github.impatient0.azero.core.model.AccountMode;
 import io.github.impatient0.azero.core.model.Candle;
 import io.github.impatient0.azero.core.model.Position;
+import io.github.impatient0.azero.core.model.Trade;
 import io.github.impatient0.azero.core.model.TradeDirection;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -157,6 +159,212 @@ class BacktestEngineTest {
             assertEquals(0, BigDecimal.ZERO.compareTo(result.getPnl()),
                 "P/L should be zero.");
         }
+
+        @Test
+        @DisplayName("WHEN scaling into a position, THEN the position's average entry price and quantity should be updated correctly.")
+        void spot_scaleIn_shouldUpdateAveragePrice() {
+            // --- ARRANGE ---
+            // 1. Strategy: Buy 1.0 BTC @ $20k, then buy another 1.0 BTC @ $22k.
+            Queue<ConfigurableTestStrategy.Action> actions = new LinkedList<>();
+            actions.add(new ConfigurableTestStrategy.Action(0, "BTCUSDT", TradeDirection.LONG, new BigDecimal("1.0")));
+            actions.add(new ConfigurableTestStrategy.Action(1, "BTCUSDT", TradeDirection.LONG, new BigDecimal("1.0")));
+            ConfigurableTestStrategy strategy = new ConfigurableTestStrategy(actions);
+
+            // 2. Market Data:
+            // Candle 0 Price: $20,000
+            // Candle 1 Price: $22,000
+            List<Candle> candles = List.of(
+                new Candle(1L, new BigDecimal("20000"), BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("20000"), BigDecimal.ZERO),
+                new Candle(2L, new BigDecimal("22000"), BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("22000"), BigDecimal.ZERO)
+            );
+            Map<String, List<Candle>> historicalData = new HashMap<>();
+            historicalData.put("BTCUSDT", candles);
+
+            BacktestConfig config = BacktestConfig.builder()
+                .historicalData(historicalData)
+                .initialCapital(new BigDecimal("50000"))
+                .strategy(strategy)
+                .accountMode(AccountMode.SPOT_ONLY)
+                .build();
+
+            // --- ACT ---
+            // Manually step through the engine to inspect the intermediate position state.
+            BacktestEngine.BacktestTradingContext context = new BacktestEngine.BacktestTradingContext(
+                config.getInitialCapital(), BigDecimal.ZERO, BigDecimal.ZERO, config.getAccountMode(), 1, BigDecimal.ZERO
+            );
+
+            // First buy
+            Candle firstCandle = candles.getFirst();
+            context.updateCurrentPrices(Map.of("BTC", firstCandle.close(), "USDT", BigDecimal.ONE));
+            strategy.onCandle(firstCandle, context);
+
+            // Second buy (scale in)
+            Candle secondCandle = candles.get(1);
+            context.updateCurrentPrices(Map.of("BTC", secondCandle.close(), "USDT", BigDecimal.ONE));
+            strategy.onCandle(secondCandle, context);
+
+            // --- ASSERT ---
+            Optional<Position> finalPositionOpt = context.getOpenPosition("BTCUSDT");
+            assertTrue(finalPositionOpt.isPresent(), "A position should be open after scaling in.");
+            Position finalPosition = finalPositionOpt.get();
+
+            // 1. Assert new quantity is correct.
+            BigDecimal expectedQuantity = new BigDecimal("2.0");
+            assertEquals(0, expectedQuantity.compareTo(finalPosition.quantity()), "Quantity should be the sum of both buys.");
+
+            // 2. Assert new average price is correct.
+            // (1.0 * $20,000 + 1.0 * $22,000) / (1.0 + 1.0) = $42,000 / 2.0 = $21,000
+            BigDecimal expectedAveragePrice = new BigDecimal("21000");
+            assertEquals(0, expectedAveragePrice.compareTo(finalPosition.entryPrice()), "Entry price should be the volume-weighted average.");
+
+            // 3. Assert cost basis is correct.
+            // Cost1 = $20,000. Cost2 = $22,000. Total Cost = $42,000
+            BigDecimal expectedCostBasis = new BigDecimal("42000");
+            assertEquals(0, expectedCostBasis.compareTo(finalPosition.costBasis()), "Cost basis should be the sum of both buys.");
+        }
+
+        @Test
+        @DisplayName("WHEN scaling out of a position, THEN a partial profit should be realized and the position updated.")
+        void spot_scaleOut_shouldRealizePartialProfit() {
+            // --- ARRANGE ---
+            // 1. Strategy: Buy 2.0 BTC @ $20k, then sell 1.0 BTC @ $22k.
+            Queue<ConfigurableTestStrategy.Action> actions = new LinkedList<>();
+            actions.add(new ConfigurableTestStrategy.Action(0, "BTCUSDT", TradeDirection.LONG, new BigDecimal("2.0")));
+            actions.add(new ConfigurableTestStrategy.Action(1, "BTCUSDT", TradeDirection.SHORT, new BigDecimal("1.0")));
+            ConfigurableTestStrategy strategy = new ConfigurableTestStrategy(actions);
+
+            // 2. Market Data:
+            // Candle 0 Price (Entry): $20,000
+            // Candle 1 Price (Partial Exit): $22,000
+            // Candle 2 Price (Final MTM): $23,000
+            List<Candle> candles = List.of(
+                new Candle(1L, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("20000"), BigDecimal.ZERO),
+                new Candle(2L, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("22000"), BigDecimal.ZERO),
+                new Candle(3L, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("23000"), BigDecimal.ZERO)
+            );
+            Map<String, List<Candle>> historicalData = new HashMap<>();
+            historicalData.put("BTCUSDT", candles);
+
+            BacktestConfig config = BacktestConfig.builder()
+                .historicalData(historicalData)
+                .initialCapital(new BigDecimal("50000"))
+                .strategy(strategy)
+                .accountMode(AccountMode.SPOT_ONLY)
+                .build();
+
+            // --- ACT ---
+            BacktestResult result = backtestEngine.run(config);
+
+            // --- ASSERT ---
+            // 1. Assert that one trade was completed (the partial close).
+            assertEquals(1, result.getTotalTrades(), "One partial trade should have been completed and recorded.");
+
+            // 2. Inspect the completed trade record.
+            Trade completedTrade = result.getExecutedTrades().getFirst();
+            assertEquals(0, new BigDecimal("1.0").compareTo(completedTrade.quantity()), "Trade record should be for the 1.0 BTC sold.");
+            assertEquals(0, new BigDecimal("20000").compareTo(completedTrade.entryPrice()), "Trade entry price should be the original position entry price.");
+            assertEquals(0, new BigDecimal("22000").compareTo(completedTrade.exitPrice()), "Trade exit price should be the price at scale-out.");
+
+            // 3. Assert the final portfolio NAV.
+            // Initial buy: 2.0 BTC @ $20k costs $40k. Cash = 10k.
+            // Partial sell: 1.0 BTC @ $22k gives $22k. Cash = 10k + 22k = 32k.
+            //   - Realized P/L from this trade = (22k - 20k) * 1.0 = +$2,000.
+            // Final State:
+            //   - Wallet has 32k cash and 1.0 BTC.
+            //   - Final MTM price of BTC is $23k.
+            //   - Unrealized P/L on remaining BTC = (23k - 20k) * 1.0 = +$3,000.
+            // Final NAV = 32k (cash) + 23k (value of remaining BTC) = $55,000.
+            BigDecimal expectedFinalValue = new BigDecimal("55000");
+            assertEquals(0, expectedFinalValue.compareTo(result.getFinalValue()), "Final NAV should reflect realized and unrealized P/L.");
+
+            // 4. Assert total P/L.
+            // Total P/L = Realized P/L + Unrealized P/L = $2,000 + $3,000 = $5,000.
+            // Or, Final NAV - Initial Capital = 55k - 50k = $5,000.
+            BigDecimal expectedPnl = new BigDecimal("5000");
+            assertEquals(0, expectedPnl.compareTo(result.getPnl()));
+        }
+
+        @Test
+        @DisplayName("WHEN a buy order's cost exceeds the available cash, THEN the order should be ignored.")
+        void spot_buyAttempt_withInsufficientFunds_shouldBeIgnored() {
+            // --- ARRANGE ---
+            // 1. Strategy: Attempt to buy 1.0 BTC @ $20,000.
+            Queue<ConfigurableTestStrategy.Action> actions = new LinkedList<>();
+            actions.add(new ConfigurableTestStrategy.Action(0, "BTCUSDT", TradeDirection.LONG, new BigDecimal("1.0")));
+            ConfigurableTestStrategy strategy = new ConfigurableTestStrategy(actions);
+
+            // 2. Market Data
+            Map<String, List<Candle>> historicalData = TestDataFactory.createSingleStreamCandleData("BTCUSDT", 5, 20000, 100);
+
+            // 3. Config: Set initial capital to be LESS than the required cost.
+            BigDecimal initialCapital = new BigDecimal("19999.99");
+            BacktestConfig config = BacktestConfig.builder()
+                .historicalData(historicalData)
+                .initialCapital(initialCapital)
+                .strategy(strategy)
+                .accountMode(AccountMode.SPOT_ONLY)
+                .build();
+
+            // --- ACT ---
+            BacktestResult result = backtestEngine.run(config);
+
+            // --- ASSERT ---
+            // 1. Verify that no trades were completed and no positions were opened.
+            assertEquals(0, result.getTotalTrades(), "No trades should have been executed.");
+
+            // 2. Verify that the portfolio's final value is unchanged.
+            assertEquals(0, initialCapital.compareTo(result.getFinalValue()),
+                "Final NAV should be equal to initial capital as the order was ignored.");
+
+            // 3. Verify P/L is zero.
+            assertEquals(0, BigDecimal.ZERO.compareTo(result.getPnl()), "P/L should be zero.");
+        }
+
+        @Test
+        @DisplayName("WHEN a round-trip trade is executed at the same price with a fee, THEN the P/L should equal the total fees.")
+        void spot_buyAndSell_atSamePrice_shouldResultInLossEqualToFees() {
+            // --- ARRANGE ---
+            // 1. Strategy: Buy 1.0 BTC, then sell it on the next candle at the same price.
+            Queue<ConfigurableTestStrategy.Action> actions = new LinkedList<>();
+            actions.add(new ConfigurableTestStrategy.Action(0, "BTCUSDT", TradeDirection.LONG, new BigDecimal("1.0")));
+            actions.add(new ConfigurableTestStrategy.Action(1, "BTCUSDT", TradeDirection.SHORT, new BigDecimal("1.0")));
+            ConfigurableTestStrategy strategy = new ConfigurableTestStrategy(actions);
+
+            // 2. Market Data: Price is flat at $20,000
+            Map<String, List<Candle>> historicalData = TestDataFactory.createSingleStreamCandleData("BTCUSDT", 2, 20000, 0);
+            BigDecimal initialCapital = new BigDecimal("30000");
+
+            // 3. Config: Set a specific trading fee of 0.1%
+            BigDecimal feePercentage = new BigDecimal("0.001"); // 0.1%
+            BacktestConfig config = BacktestConfig.builder()
+                .historicalData(historicalData)
+                .initialCapital(initialCapital)
+                .strategy(strategy)
+                .accountMode(AccountMode.SPOT_ONLY)
+                .tradingFeePercentage(feePercentage)
+                .build();
+
+            // --- ACT ---
+            BacktestResult result = backtestEngine.run(config);
+
+            // --- ASSERT ---
+            // 1. Verify the trade was completed.
+            assertEquals(1, result.getTotalTrades());
+
+            // 2. Calculate the expected P/L, which should be the sum of the two fees.
+            // Buy trade value = 1.0 * $20,000 = $20,000. Fee = $20,000 * 0.001 = $20.
+            // Sell trade value = 1.0 * $20,000 = $20,000. Fee = $20,000 * 0.001 = $20.
+            // Total fees paid = $20 + $20 = $40.
+            // The final P/L should be exactly -$40.
+            BigDecimal expectedPnl = new BigDecimal("-40.00");
+            assertEquals(0, expectedPnl.compareTo(result.getPnl()),
+                "Total P/L should be a negative value exactly equal to the sum of trading fees.");
+
+            // 3. Verify the final NAV.
+            // Final NAV = Initial Capital + P/L = 30000 - 40 = 29960
+            BigDecimal expectedFinalValue = new BigDecimal("29960.00");
+            assertEquals(0, expectedFinalValue.compareTo(result.getFinalValue()));
+        }
     }
 
     @Nested
@@ -197,7 +405,7 @@ class BacktestEngineTest {
                 config.getMaintenanceMarginFactor()
             );
 
-            Candle firstCandle = historicalData.get("BTCUSDT").get(0);
+            Candle firstCandle = historicalData.get("BTCUSDT").getFirst();
             Map<String, BigDecimal> prices = Map.of("BTC", firstCandle.close(), "USDT", BigDecimal.ONE);
             context.updateCurrentPrices(prices);
             strategy.onCandle(firstCandle, context);
@@ -388,6 +596,184 @@ class BacktestEngineTest {
             // in the engine's high-precision BigDecimal calculations.
             assertTrue(result.getFinalValue().subtract(expectedFinalValue).abs().compareTo(new BigDecimal("0.01")) < 0,
                 "Final value should be initial capital minus the loss from liquidation.");
+        }
+
+        @Test
+        @DisplayName("WHEN scaling into a margin position, THEN its average price and total cost basis (margin) should be updated.")
+        void margin_scaleIn_shouldUpdateAveragePriceAndMargin() {
+            // --- ARRANGE ---
+            // 1. Strategy: Buy 1.0 BTC @ $20k, then buy another 1.0 BTC @ $22k using 10x leverage.
+            Queue<ConfigurableTestStrategy.Action> actions = new LinkedList<>();
+            actions.add(new ConfigurableTestStrategy.Action(0, "BTCUSDT", TradeDirection.LONG, new BigDecimal("1.0")));
+            actions.add(new ConfigurableTestStrategy.Action(1, "BTCUSDT", TradeDirection.LONG, new BigDecimal("1.0")));
+            ConfigurableTestStrategy strategy = new ConfigurableTestStrategy(actions);
+
+            // 2. Market Data:
+            List<Candle> candles = List.of(
+                new Candle(1L, new BigDecimal("20000"), BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("20000"), BigDecimal.ZERO),
+                new Candle(2L, new BigDecimal("22000"), BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("22000"), BigDecimal.ZERO)
+            );
+
+            // --- ACT ---
+            // Manually step through to inspect the intermediate position state.
+            BacktestEngine.BacktestTradingContext context = new BacktestEngine.BacktestTradingContext(
+                new BigDecimal("50000"), BigDecimal.ZERO, BigDecimal.ZERO, AccountMode.MARGIN, 10, new BigDecimal("0.5")
+            );
+
+            // First buy
+            Candle firstCandle = candles.getFirst();
+            context.updateCurrentPrices(Map.of("BTC", firstCandle.close(), "USDT", BigDecimal.ONE));
+            strategy.onCandle(firstCandle, context);
+
+            // Second buy (scale in)
+            Candle secondCandle = candles.get(1);
+            context.updateCurrentPrices(Map.of("BTC", secondCandle.close(), "USDT", BigDecimal.ONE));
+            strategy.onCandle(secondCandle, context);
+
+            // --- ASSERT ---
+            Optional<Position> finalPositionOpt = context.getOpenPosition("BTCUSDT");
+            assertTrue(finalPositionOpt.isPresent(), "A position should be open after scaling in.");
+            Position finalPosition = finalPositionOpt.get();
+
+            // 1. Assert new quantity.
+            assertEquals(0, new BigDecimal("2.0").compareTo(finalPosition.quantity()));
+
+            // 2. Assert new average price.
+            // (1.0 * $20,000 + 1.0 * $22,000) / 2.0 = $21,000
+            assertEquals(0, new BigDecimal("21000").compareTo(finalPosition.entryPrice()));
+
+            // 3. Assert new total cost basis (initial margin).
+            // IMR @ 10x ~= 0.1219
+            // Margin 1 = $20,000 * 0.1219 = 2438
+            // Margin 2 = $22,000 * 0.1219 = 2681.8
+            // Total Margin = 2438 + 2681.8 = 5119.8
+            BigDecimal imr = context.calculateInitialMarginRate();
+            BigDecimal margin1 = new BigDecimal("20000").multiply(imr);
+            BigDecimal margin2 = new BigDecimal("22000").multiply(imr);
+            BigDecimal expectedTotalMargin = margin1.add(margin2);
+
+            assertTrue(finalPosition.costBasis().subtract(expectedTotalMargin).abs().compareTo(new BigDecimal("0.1")) < 0,
+                "Cost basis should be the sum of the initial margin from both buys.");
+        }
+
+        @Test
+        @DisplayName("WHEN scaling out of a margin position, THEN P/L is realized and the position's margin is proportionally reduced.")
+        void margin_scaleOut_shouldRealizePartialProfitAndReducePosition() {
+            // --- ARRANGE ---
+            // 1. Strategy: Buy 2.0 ETH @ $1k, then sell 1.0 ETH @ $1.2k, using 5x leverage.
+            Queue<ConfigurableTestStrategy.Action> actions = new LinkedList<>();
+            actions.add(new ConfigurableTestStrategy.Action(0, "ETHUSDT", TradeDirection.LONG, new BigDecimal("2.0")));
+            actions.add(new ConfigurableTestStrategy.Action(1, "ETHUSDT", TradeDirection.SHORT, new BigDecimal("1.0")));
+            ConfigurableTestStrategy strategy = new ConfigurableTestStrategy(actions);
+
+            // 2. Market Data:
+            List<Candle> candles = List.of(
+                new Candle(1L, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("1000"), BigDecimal.ZERO),
+                new Candle(2L, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("1200"), BigDecimal.ZERO)
+            );
+            Map<String, List<Candle>> historicalData = new HashMap<>();
+            historicalData.put("ETHUSDT", candles);
+
+            BacktestConfig config = BacktestConfig.builder()
+                .historicalData(historicalData)
+                .initialCapital(new BigDecimal("1000"))
+                .strategy(strategy)
+                .accountMode(AccountMode.MARGIN)
+                .marginLeverage(5)
+                .build();
+
+            // --- ACT ---
+            // Manually step through to inspect the intermediate position state.
+            BacktestEngine.BacktestTradingContext context = new BacktestEngine.BacktestTradingContext(
+                config.getInitialCapital(), BigDecimal.ZERO, BigDecimal.ZERO, config.getAccountMode(),
+                config.getMarginLeverage(), config.getMaintenanceMarginFactor()
+            );
+
+            // First buy
+            Candle firstCandle = candles.getFirst();
+            context.updateCurrentPrices(Map.of("ETH", firstCandle.close(), "USDT", BigDecimal.ONE));
+            strategy.onCandle(firstCandle, context);
+
+            // Partial sell (scale out)
+            Candle secondCandle = candles.get(1);
+            context.updateCurrentPrices(Map.of("ETH", secondCandle.close(), "USDT", BigDecimal.ONE));
+            strategy.onCandle(secondCandle, context);
+
+            // --- ASSERT ---
+            Optional<Position> finalPositionOpt = context.getOpenPosition("ETHUSDT");
+            assertTrue(finalPositionOpt.isPresent(), "A position should still be open after scaling out.");
+            Position finalPosition = finalPositionOpt.get();
+
+            // 1. Assert that one trade was completed (the partial close).
+            assertEquals(1, context.getExecutedTradesForTest().size());
+
+            // 2. Assert the state of the REMAINING position.
+            assertEquals(0, new BigDecimal("1.0").compareTo(finalPosition.quantity()), "Remaining quantity should be 1.0 ETH.");
+            assertEquals(0, new BigDecimal("1000").compareTo(finalPosition.entryPrice()), "Entry price should remain unchanged.");
+
+            // 3. Assert the cost basis (Initial Margin) was proportionally reduced.
+            // IMR @ 5x ~= 0.2 * 1.02^5 ~= 0.2208
+            // Initial Margin for 2.0 ETH @ $1k = $2000 * 0.2208 = $441.6
+            // Since we closed half the position, the remaining margin should be half the initial.
+            BigDecimal imr = context.calculateInitialMarginRate();
+            BigDecimal initialMargin = new BigDecimal("2000").multiply(imr);
+            BigDecimal expectedRemainingMargin = initialMargin.divide(new BigDecimal("2"), 8, RoundingMode.HALF_UP);
+
+            assertTrue(finalPosition.costBasis().subtract(expectedRemainingMargin).abs().compareTo(new BigDecimal("0.1")) < 0,
+                "Remaining cost basis should be half of the original initial margin.");
+        }
+
+        @Test
+        @DisplayName("WHEN calculating equity with multiple positions, THEN gains from one should offset losses from another.")
+        void margin_equityCalculation_withMultiplePositions() {
+            // --- ARRANGE ---
+            // 1. Manually construct the context in MARGIN mode.
+            BacktestEngine.BacktestTradingContext context = new BacktestEngine.BacktestTradingContext(
+                new BigDecimal("20000"), BigDecimal.ZERO, BigDecimal.ZERO, AccountMode.MARGIN, 10, new BigDecimal("0.5")
+            );
+
+            // 2. Set up the portfolio state using the test utility.
+            //    - A profitable LONG position of 1.0 BTC (entered at $25k).
+            //    - An unprofitable SHORT position of 10.0 ETH (entered at $1.8k).
+            context.setupMarginPositionForTest("BTCUSDT", TradeDirection.LONG, new BigDecimal("25000"), new BigDecimal("1.0"), BigDecimal.ZERO);
+            context.setupMarginPositionForTest("ETHUSDT", TradeDirection.SHORT, new BigDecimal("1800"), new BigDecimal("10.0"), BigDecimal.ZERO);
+
+            // 3. Define the current market prices.
+            //    - BTC has gone up to $30,000 (a profitable long).
+            //    - ETH has gone up to $2,000 (an unprofitable short).
+            Map<String, BigDecimal> currentPrices = Map.of(
+                "BTC", new BigDecimal("30000"),
+                "ETH", new BigDecimal("2000"),
+                "USDT", BigDecimal.ONE
+            );
+            context.updateCurrentPrices(currentPrices);
+
+            // --- ACT ---
+            // Call the method under test directly.
+            BigDecimal totalEquity = context.calculateTotalEquity(currentPrices);
+
+            // --- ASSERT ---
+            // Wallet State after setup:
+            //   - BTC: +1.0
+            //   - ETH: -10.0
+            //   - USDT: 20000 (initial) - 25000 (paid for BTC) + 18000 (proceeds from ETH) = 13000
+            //
+            // Formula: Equity = Sum(Positive Assets * Ratio) - Sum(Value of Negative Assets)
+            // Collateral Ratios: BTC=0.95, ETH=0.95, USDT=1.0
+            //
+            // Positive Asset Value (Collateralized):
+            //   - BTC: 1.0 * $30,000 * 0.95 = $28,500
+            //   - USDT: 13000 * $1 * 1.0 = $13,000
+            //   - Total Positive = $41,500
+            //
+            // Negative Asset Value (Non-Collateralized):
+            //   - ETH: 10.0 * $2,000 = $20,000
+            //   - Total Negative = $20,000
+            //
+            // Expected Equity = $41,500 - $20,000 = $21,500
+            BigDecimal expectedEquity = new BigDecimal("21500");
+            assertEquals(0, expectedEquity.compareTo(totalEquity),
+                "Total equity should correctly sum the collateralized value of profitable positions and the liabilities of unprofitable ones.");
         }
     }
 }
