@@ -44,24 +44,19 @@ public interface TradingContext {
      *   <li><b>Increasing a position (scaling in):</b> If an order is submitted in the same direction as the existing position.</li>
      *   <li><b>Decreasing or closing a position (scaling out):</b> If an order is submitted in the opposite direction.</li>
      * </ul>
-     * The underlying engine is responsible for correctly interpreting the order and
-     * updating the portfolio state, including position size, average entry price,
-     * and recording any completed trades (e.g., on a partial close).
+     * <b>Interaction Pattern:</b> This method follows a "fire-and-reconcile" model.
+     * It returns {@code void} immediately and does not guarantee execution. The strategy
+     * is responsible for checking the result of its action by calling
+     * {@link #getOpenPosition(String)} on a subsequent event to reconcile its state
+     * with the environment's ground truth.
      *
      * @param symbol    The trading symbol (e.g., "BTCUSDT").
      * @param direction The desired direction of the order (LONG or SHORT).
-     * @param quantity  The amount of the asset to trade.
-     * @param price     The price at which to execute the order.
+     * @param quantity  The amount of the <b>base</b> asset to trade (e.g., the amount of BTC
+     *                  in a BTCUSDT trade).
+     * @param price     The target price for the order. The actual execution price may differ due
+     *                  to market conditions (e.g., slippage, fees).
      */
     void submitOrder(String symbol, TradeDirection direction, BigDecimal quantity, BigDecimal price);
-
-    /**
-     * Updates the context with the latest market prices for all relevant assets.
-     * This is called by the execution engine on each tick *before* the strategy's
-     * onCandle method is called.
-     *
-     * @param currentPrices A map of asset symbols to their current market prices.
-     */
-    void updateCurrentPrices(Map<String, BigDecimal> currentPrices);
 
 }
