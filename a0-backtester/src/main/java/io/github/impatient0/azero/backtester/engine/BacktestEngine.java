@@ -133,7 +133,7 @@ public class BacktestEngine {
      * It simulates the behavior of a real trading account by tracking cash,
      * open positions, and executed trades in memory.
      */
-    private static class BacktestTradingContext implements TradingContext {
+    static class BacktestTradingContext implements TradingContext {
 
         /** The standard scale for all price-related calculations. */
         private static final int PRICE_SCALE = 8;
@@ -188,7 +188,7 @@ public class BacktestEngine {
          * @param maintenanceMarginFactor The factor multiplied by a position's initial margin to determine
          *                                its maintenance margin requirement.
          */
-        private BacktestTradingContext(BigDecimal initialCapital, BigDecimal tradingFeePercentage,
+        BacktestTradingContext(BigDecimal initialCapital, BigDecimal tradingFeePercentage,
             BigDecimal slippagePercentage, AccountMode accountMode, int marginLeverage,
             BigDecimal maintenanceMarginFactor) {
             this.initialCapital = initialCapital;
@@ -573,7 +573,7 @@ public class BacktestEngine {
          * @param currentPrices A map of asset symbols to their current market prices.
          * @return The total calculated margin equity of the portfolio.
          */
-        private BigDecimal calculateTotalEquity(Map<String, BigDecimal> currentPrices) {
+        BigDecimal calculateTotalEquity(Map<String, BigDecimal> currentPrices) {
             BigDecimal positiveAssetValue = BigDecimal.ZERO;
             BigDecimal negativeAssetValue = BigDecimal.ZERO;
 
@@ -603,7 +603,7 @@ public class BacktestEngine {
          *
          * @return The calculated Initial Margin Rate as a BigDecimal.
          */
-        private BigDecimal calculateInitialMarginRate() {
+        BigDecimal calculateInitialMarginRate() {
             if (marginLeverage <= 0) {
                 return BigDecimal.ONE; // Should not happen, but a safe default
             }
@@ -620,7 +620,7 @@ public class BacktestEngine {
          *
          * @return The total initial margin currently in use.
          */
-        private BigDecimal calculateTotalInitialMargin() {
+        BigDecimal calculateTotalInitialMargin() {
             return openPositions.values().stream()
                 .map(Position::costBasis)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -631,7 +631,7 @@ public class BacktestEngine {
          *
          * @return The total maintenance margin as a BigDecimal.
          */
-        private BigDecimal calculateTotalMaintenanceMargin() {
+        BigDecimal calculateTotalMaintenanceMargin() {
             return openPositions.values().stream()
                 .map(p -> p.costBasis().multiply(this.maintenanceMarginFactor))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -692,7 +692,7 @@ public class BacktestEngine {
          * @param currentPrices A map of asset symbols to their current market prices.
          * @return The total Net Asset Value of the portfolio.
          */
-        private BigDecimal calculateNetAssetValue(Map<String, BigDecimal> currentPrices) {
+        BigDecimal calculateNetAssetValue(Map<String, BigDecimal> currentPrices) {
             BigDecimal totalValue = BigDecimal.ZERO;
             for (Map.Entry<String, BigDecimal> walletEntry : wallet.entrySet()) {
                 String asset = walletEntry.getKey();
@@ -718,7 +718,7 @@ public class BacktestEngine {
          * @param orderDirection The direction of the order, which dictates whether it's a BUY or a SELL action.
          * @return The price adjusted for slippage.
          */
-        private BigDecimal applySlippage(BigDecimal price, TradeDirection orderDirection) {
+        BigDecimal applySlippage(BigDecimal price, TradeDirection orderDirection) {
             if (slippagePercentage.compareTo(BigDecimal.ZERO) == 0) {
                 return price;
             }
@@ -743,11 +743,57 @@ public class BacktestEngine {
          * @return The calculated proportional value. Returns zero if {@code wholeQuantity} is zero
          *         to prevent division-by-zero errors.
          */
-        private BigDecimal calculateProportionalValue(BigDecimal totalValue, BigDecimal partQuantity, BigDecimal wholeQuantity) {
+        BigDecimal calculateProportionalValue(BigDecimal totalValue, BigDecimal partQuantity, BigDecimal wholeQuantity) {
             if (wholeQuantity.compareTo(BigDecimal.ZERO) == 0) {
                 return BigDecimal.ZERO;
             }
             return totalValue.multiply(partQuantity).divide(wholeQuantity, PRICE_SCALE, RoundingMode.HALF_UP);
+        }
+
+        /**
+         * Retrieves the balance of a specific asset from the wallet.
+         * <p>
+         * <b>Note:</b> This method is package-private and intended for testing purposes only.
+         *
+         * @param asset The asset symbol (e.g., "BTC", "USDT").
+         * @return The current balance of the asset, or {@link BigDecimal#ZERO} if not present.
+         */
+        BigDecimal getWalletBalanceForTest(String asset) {
+            return wallet.getOrDefault(asset, BigDecimal.ZERO);
+        }
+
+        /**
+         * Directly manipulates the internal state to create a complete margin position.
+         * This is a low-level utility designed exclusively for setting up unit test scenarios.
+         * It bypasses all safety checks like margin validation.
+         * <p>
+         * <b>Warning:</b> For testing purposes only. Puts the context into a state that
+         * assumes a position was previously opened at the given parameters.
+         *
+         * @param symbol The symbol for the position (e.g., "BTCUSDT").
+         * @param direction The direction of the position.
+         * @param entryPrice The average entry price of the simulated position.
+         * @param quantity The quantity of the base asset.
+         * @param initialMargin The initial margin required for this position.
+         */
+        void setupMarginPositionForTest(String symbol, TradeDirection direction, BigDecimal entryPrice,
+            BigDecimal quantity, BigDecimal initialMargin) {
+            String baseAsset = symbol.replace("USDT", "");
+            String quoteAsset = "USDT";
+            BigDecimal positionValue = entryPrice.multiply(quantity);
+
+            if (direction == TradeDirection.LONG) {
+                // Simulate having received the base asset and paid for it
+                this.wallet.put(baseAsset, quantity);
+                this.wallet.merge(quoteAsset, positionValue.negate(), BigDecimal::add);
+            } else { // SHORT
+                // Simulate having borrowed the base asset and received the proceeds
+                this.wallet.put(baseAsset, quantity.negate());
+                this.wallet.merge(quoteAsset, positionValue, BigDecimal::add);
+            }
+
+            Position position = new Position(symbol, System.currentTimeMillis(), entryPrice, quantity, direction, initialMargin);
+            this.openPositions.put(symbol, position);
         }
     }
 }
