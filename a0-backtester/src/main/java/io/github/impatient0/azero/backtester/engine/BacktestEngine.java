@@ -795,5 +795,17 @@ public class BacktestEngine {
             Position position = new Position(symbol, System.currentTimeMillis(), entryPrice, quantity, direction, initialMargin);
             this.openPositions.put(symbol, position);
         }
+
+        /**
+         * Retrieves an unmodifiable copy of all trades executed during the simulation.
+         * <p>
+         * <b>Note:</b> This method is package-private and intended for testing purposes only.
+         * It provides a safe, read-only view of the trade history for making detailed assertions.
+         *
+         * @return An unmodifiable {@code List} of {@link Trade} objects.
+         */
+        List<Trade> getExecutedTradesForTest() {
+            return List.copyOf(this.executedTrades); // Creates a safe, immutable copy
+        }
     }
 }
