@@ -1,47 +1,65 @@
 # A-Zero :: Backtester Library
 
-This module provides the core engine for running event-driven backtest simulations of trading strategies. It is a non-executable Java library designed to be consumed by other modules, such as a command-line interface or a graphical user interface.
+This module provides a high-fidelity, event-driven engine for backtesting trading strategies. It is a non-executable Java library designed to simulate strategy performance with a strong emphasis on realistic portfolio and risk management.
 
-## Core Components
+## Core Concepts: Account Modes
 
-The library's primary entry point is the `BacktestEngine`, which orchestrates the simulation. It is configured via a `BacktestConfig` object and returns a `BacktestResult` object.
+The engine operates in one of two distinct, explicit modes to ensure simulation correctness:
 
--   **`BacktestEngine`**: The main class that runs the simulation. Its `run()` method takes a configuration containing a `Strategy` instance and executes the backtest loop, returning the results.
--   **`BacktestConfig`**: A flexible builder-style configuration object. It requires `initialCapital`, `historicalData` (`List<Candle>`), and a `Strategy` instance. It also allows for optional, realistic cost parameters:
-    -   `tradingFeePercentage`: The fee per trade (e.g., `0.001` for 0.1%).
-    -   `slippagePercentage`: The simulated price slippage per trade (e.g., `0.0005` for 0.05%).
--   **`BacktestResult`**: An immutable data object containing the summary of the backtest performance, including final portfolio value, total P/L (absolute and percentage), and a complete list of executed trades.
+-   **`AccountMode.SPOT_ONLY` (Default):** Simulates a standard cash-based spot trading account.
+    -   All buys are paid for in full from the cash balance.
+    -   Sells require the asset to be present in the wallet.
+    -   Short selling is disallowed and will result in the order being rejected.
 
-## Key Features
+-   **`AccountMode.MARGIN`:** Simulates a modern portfolio margin account, inspired by systems like the Bybit Unified Trading Account (UTA).
+    -   Supports both leveraged LONG and SHORT positions.
+    -   Manages a multi-asset wallet where assets can be owned (positive balance) or borrowed (negative balance).
+    -   Uses a portfolio-level equity calculation to determine margin requirements.
 
-The engine is designed with the "safety and correctness" principle in mind, providing a robust and realistic simulation environment.
+## The Portfolio Margin Model (`MARGIN` Mode)
 
--   **Event-Driven Execution**: The engine iterates through historical data, calling the `strategy.onCandle()` method for each candle, allowing the strategy to react to market changes.
--   **Realistic Cost Simulation**: The engine applies both slippage and trading fees to every transaction, providing a more accurate picture of a strategy's real-world performance.
--   **Flexible Position Management**: Strategies can scale positions in and out. The engine correctly handles:
-    -   **Scaling In**: Increasing a position's size, with automatic calculation of the new volume-weighted average price (VWAP).
-    -   **Scaling Out**: Decreasing a position's size (partial profit-taking), which correctly generates a `Trade` record for the realized portion.
--   **Accurate Mark-to-Market Valuation**: If a position remains open at the end of a simulation, its value is calculated based on the last available price, including the simulated costs of liquidation (fees and slippage).
+When running in `MARGIN` mode, the engine uses a sophisticated model to determine buying power and risk.
+
+### 1. Portfolio Equity
+
+The engine calculates `Total Equity` based on a risk-adjusted formula:
+> `Equity = Sum(Value of Positive Assets * Collateral Ratio) - Sum(Value of Negative Assets)`
+
+The **Collateral Ratios** are loaded from a mandatory `collateral-ratios.yaml` file that must be present in the `resources` directory. This file defines how much each asset contributes to the portfolio's margin collateral.
+
+### 2. Initial Margin Rate (IMR)
+
+Before a new position is opened, the engine calculates an `InitialMarginRate` based on the configured leverage using a conservative formula:
+> `IMR = (1 / leverage) * (1.02 ^ leverage)`
+
+A trade is only accepted if the available equity is sufficient to cover the required initial margin:
+> `Available Equity (Equity - Used Margin) >= New Position Value * IMR`
+
+### 3. Maintenance Margin & Liquidation
+
+The engine also simulates margin calls. It calculates a `Total Maintenance Margin` (configurable, defaults to 50% of the Total Initial Margin). If at any point the `Total Equity` drops below this threshold, a **forced liquidation event** is triggered, and all open positions are closed at the current market price.
 
 ## How to Use
 
-The following is a conceptual example of how to use the library:
+The engine now requires multi-asset data streams, even for a single-asset strategy.
 
 ```java
 // 1. Instantiate your strategy
-// (Assuming MyTradingStrategy implements the Strategy interface)
 Strategy myStrategy = new MyTradingStrategy(parameters);
 
-// 2. Load historical data (e.g., from a CSV file)
-List<Candle> candles = CsvDataLoader.load("BTCUSDT-1h.csv");
+// 2. Load historical data for all assets to be traded or held.
+Map<String, List<Candle>> historicalData = new HashMap<>();
+historicalData.put("BTCUSDT", CsvDataLoader.load("BTCUSDT-1h.csv"));
+historicalData.put("ETHUSDT", CsvDataLoader.load("ETHUSDT-1h.csv"));
 
-// 3. Configure the backtest
+// 3. Configure the backtest for MARGIN mode
 BacktestConfig config = BacktestConfig.builder()
-    .historicalData(candles)
+    .historicalData(historicalData)
     .initialCapital(new BigDecimal("10000.00"))
-    .strategy(myStrategy) // Provide the strategy instance
-    .tradingFeePercentage(new BigDecimal("0.001")) // 0.1% fee
-    .slippagePercentage(new BigDecimal("0.0005")) // 0.05% slippage
+    .strategy(myStrategy)
+    .accountMode(AccountMode.MARGIN) // Explicitly select MARGIN mode
+    .marginLeverage(10) // Set 10x leverage
+    .tradingFeePercentage(new BigDecimal("0.001"))
     .build();
 
 // 4. Instantiate the engine and run the simulation
@@ -50,9 +68,8 @@ BacktestResult result = engine.run(config);
 
 // 5. Analyze the results
 System.out.println("Backtest Complete!");
-System.out.println("Final Portfolio Value: " + result.getFinalValue());
+System.out.println("Final Net Asset Value: " + result.getFinalValue());
 System.out.println("Total P/L: " + result.getPnl() + " (" + result.getPnlPercent() + "%)");
-System.out.println("Total Trades: " + result.getTotalTrades());
 ```
 
 > [!IMPORTANT]
@@ -66,6 +83,6 @@ System.out.println("Total Trades: " + result.getTotalTrades());
 
 This library provides a strong foundation, but several features are planned for future development to enhance its capabilities.
 
--   **Multi-Asset Portfolio Support**: The current portfolio management logic is simplified to handle one asset at a time. The `TradingContext` interface is designed for multi-asset support, but the implementation will be evolved to manage a `Map<String, Position>` to allow strategies to trade multiple symbols concurrently within a single portfolio.
--   **Advanced Order Types**: The current `submitOrder` method simulates an immediate market order. The interface could be extended in the future to accept more complex order parameters (e.g., limit orders, time-in-force policies) to allow for more sophisticated strategy execution models.
+-   **Multi-Quote Symbol Support**: The engine currently assumes all trading pairs are quoted in USDT. Future work will involve making the quote currency configurable to support pairs like BTC/ETH.
+-   **Advanced Order Types**: The current `submitOrder` method simulates an immediate market order. The interface could be extended in the future to accept more complex order parameters (e.g., limit orders).
 -   **Accurate Timestamps**: Timestamps for `Trade` and `Position` objects are currently placeholders. They will be updated to use the timestamp from the current `Candle` being processed to ensure point-in-time accuracy.
