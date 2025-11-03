@@ -486,6 +486,18 @@ public class BacktestEngine {
             wallet.merge(baseAsset, quantityToSell.negate(), BigDecimal::add);
             wallet.merge(quoteAsset, proceeds, BigDecimal::add);
 
+            // Create and record the completed trade
+            Trade trade = new Trade(
+                symbol,
+                existing.entryTimestamp(),
+                System.currentTimeMillis(), // Placeholder timestamp
+                existing.entryPrice(),
+                executionPrice,
+                quantityToSell,
+                existing.direction()
+            );
+            executedTrades.add(trade);
+
             // Update or remove position
             BigDecimal remainingQuantity = existing.quantity().subtract(quantityToSell);
             if (remainingQuantity.compareTo(BigDecimal.ZERO) > 0) {
