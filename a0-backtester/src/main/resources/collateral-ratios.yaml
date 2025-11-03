@@ -3,51 +3,50 @@
 # This file defines the value an asset contributes to the total portfolio equity when held.
 # A ratio of 1.0 means 100% of the asset's value is counted as equity.
 # A ratio of 0.95 means only 95% of the asset's value is counted.
-# Ratios are based on the "МНОЖИТЕЛЬ" (Multiplier) value from the provided screenshot.
 
 # Stablecoins
 USDT: 1.0
-USDC: 0.95
-DAI: 0.9
+USDC: 1.0
 USDTB: 0.95
+USDE: 0.93
+DAI: 0.9
 
 # Major Assets
 BTC: 0.95
 ETH: 0.95
+BNB: 0.9
+DOT: 0.95
 
-# Other Altcoins (Sorted by descending ratio where possible)
-SOL: 0.9
-XAUT: 0.9
-XRP: 0.85
-BNB: 0.85
-SHIB: 0.85
-LTC: 0.8
-XLM: 0.8
-MANA: 0.8
-DOT: 0.8
-DOGE: 0.8
-BCH: 0.8
-ADA: 0.8
-AVA: 0.8
-APE: 0.8
-TRX: 0.8
-STE: 0.8
-GMT: 0.8
-UNI: 0.8
-IMX: 0.8
-YFI: 0.8
-AXS: 0.8
-GR: 0.8
-JASMY: 0.8
-CRV: 0.8
-MET: 0.8
-CHZ: 0.7
-ATOM: 0.7
-QNT: 0.7
-NEAR: 0.7
+# Other Altcoins
+A: 0.6
+AAVE: 0.75
 ALGO: 0.7
-GALA: 0.7
+APE: 0.9
+ATOM: 0.9
+AVAX: 0.8
+AXS: 0.7
+BCH: 0.8
+CHZ: 0.9
+CRV: 0.7
+DOGE: 1.0
 DYDX: 0.7
-FIL: 0.7
-ETC: 0.7
-COMP: 0.7
+ETC: 0.8
+FIL: 0.85
+GALA: 0.7
+GMT: 0.85
+IMX: 0.7
+JASMY: 0.5
+LTC: 0.9
+MANA: 0.7
+METH: 0.9
+NEAR: 0.8
+OP: 0.85
+SAND: 0.9
+SHIB: 0.85
+STETH: 0.9
+TRX: 0.7
+UNI: 0.8
+XAUT: 0.95
+XLM: 0.8
+XRP: 0.85
+YFI: 0.85
