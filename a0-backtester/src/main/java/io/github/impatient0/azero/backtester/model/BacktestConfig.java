@@ -71,6 +71,17 @@ public class BacktestConfig {
     int marginLeverage = 1;
 
     /**
+     * The factor used to calculate the Maintenance Margin from the Initial Margin.
+     * Maintenance Margin = Initial Margin * maintenanceMarginFactor.
+     * A value of 0.5 means the maintenance margin is 50% of the initial margin.
+     * <p>
+     * This parameter is <b>ignored</b> in {@link AccountMode#SPOT_ONLY}. Defaults to 0.5.
+     */
+    @NonNull
+    @Builder.Default
+    BigDecimal maintenanceMarginFactor = new BigDecimal("0.5");
+
+    /**
      * The trading fee charged by the exchange, expressed as a percentage.
      * For example, a 0.1% fee should be provided as {@code new BigDecimal("0.001")}.
      * Defaults to zero if not specified.
