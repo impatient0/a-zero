@@ -3,6 +3,7 @@ package io.github.impatient0.azero.backtester.engine;
 import io.github.impatient0.azero.backtester.config.CollateralRatioLoader;
 import io.github.impatient0.azero.backtester.model.BacktestConfig;
 import io.github.impatient0.azero.backtester.model.BacktestResult;
+import io.github.impatient0.azero.core.event.MarketEvent;
 import io.github.impatient0.azero.core.model.AccountMode;
 import io.github.impatient0.azero.core.model.Candle;
 import io.github.impatient0.azero.core.model.Position;
@@ -78,21 +79,24 @@ public class BacktestEngine {
 
         // 1. Pre-process data for efficient lookup
         Map<String, NavigableMap<Long, Candle>> dataByTimestamp = new HashMap<>();
-        NavigableMap<Long, List<Candle>> eventsByTimestamp = new TreeMap<>();
+        NavigableMap<Long, List<MarketEvent>> eventsByTimestamp = new TreeMap<>();
 
         for (Map.Entry<String, List<Candle>> entry : config.getHistoricalData().entrySet()) {
             String symbol = entry.getKey();
-            dataByTimestamp.put(symbol, new TreeMap<>());
+            NavigableMap<Long, Candle> symbolData = new TreeMap<>();
+            dataByTimestamp.put(symbol, symbolData);
+
             for (Candle candle : entry.getValue()) {
-                dataByTimestamp.get(symbol).put(candle.timestamp(), candle);
-                eventsByTimestamp.computeIfAbsent(candle.timestamp(), k -> new ArrayList<>()).add(candle);
+                symbolData.put(candle.timestamp(), candle);
+                eventsByTimestamp.computeIfAbsent(candle.timestamp(), k -> new ArrayList<>())
+                    .add(new MarketEvent(symbol, candle));
             }
         }
 
         // 2. Main event loop
-        for (Map.Entry<Long, List<Candle>> eventEntry : eventsByTimestamp.entrySet()) {
+        for (Map.Entry<Long, List<MarketEvent>> eventEntry : eventsByTimestamp.entrySet()) {
             long currentTimestamp = eventEntry.getKey();
-            List<Candle> newCandles = eventEntry.getValue();
+            List<MarketEvent> newMarketEvents = eventEntry.getValue();
 
             // 3. Construct the current price map (forward-filling missing prices)
             Map<String, BigDecimal> currentPrices = new HashMap<>();
@@ -115,9 +119,9 @@ public class BacktestEngine {
                 }
             }
 
-            // 5. Notify the strategy of each new candle for this timestamp
-            for (Candle newCandle : newCandles) {
-                strategy.onCandle(newCandle, context);
+            // 5. Notify the strategy of each new event for this timestamp
+            for (MarketEvent newMarketEvent : newMarketEvents) {
+                strategy.onMarketEvent(newMarketEvent, context);
             }
         }
 
