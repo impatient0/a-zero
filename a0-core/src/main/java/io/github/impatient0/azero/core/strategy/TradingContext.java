@@ -36,6 +36,42 @@ public interface TradingContext {
     Map<String, Position> getOpenPositions();
 
     /**
+     * Returns the total Net Asset Value (NAV) of the account.
+     * This is the true mark-to-market value of the entire portfolio.
+     * NAV = Sum(balance_of_each_asset * current_price_of_asset).
+     * <p>
+     * This value should be used for performance tracking and position sizing calculations.
+     * @return The current Net Asset Value.
+     */
+    BigDecimal getNetAssetValue();
+
+    /**
+     * Returns the total Equity of the account, for margin calculation purposes.
+     * This value is only relevant in MARGIN mode and may be discounted by collateral ratios.
+     * In SPOT_ONLY mode, this is expected to return the same value as {@link #getNetAssetValue()}.
+     * <p>
+     * This value should be used for evaluating margin availability.
+     * @return The current risk-adjusted portfolio Equity.
+     */
+    BigDecimal getMarginEquity();
+
+    /**
+     * Returns an unmodifiable view of the entire asset wallet.
+     * The map contains all assets, both positive (owned) and negative (borrowed).
+     *
+     * @return An unmodifiable Map of asset symbol to its current balance.
+     */
+    Map<String, BigDecimal> getWalletBalances();
+
+    /**
+     * Returns the balance for a single, specific asset.
+     *
+     * @param asset The asset symbol (e.g., "BTC", "USDT").
+     * @return The balance of the asset, or {@code BigDecimal.ZERO} if the asset is not in the wallet.
+     */
+    BigDecimal getAssetBalance(String asset);
+
+    /**
      * Submits an order to the trading engine to modify a position.
      * <p>
      * This single method handles all trading actions:
