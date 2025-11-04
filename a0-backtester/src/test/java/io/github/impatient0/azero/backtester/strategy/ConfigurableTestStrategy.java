@@ -1,6 +1,6 @@
 package io.github.impatient0.azero.backtester.strategy;
 
-import io.github.impatient0.azero.core.model.Candle;
+import io.github.impatient0.azero.core.event.MarketEvent;
 import io.github.impatient0.azero.core.model.TradeDirection;
 import io.github.impatient0.azero.core.strategy.Strategy;
 import io.github.impatient0.azero.core.strategy.TradingContext;
@@ -28,20 +28,20 @@ public class ConfigurableTestStrategy implements Strategy {
     }
 
     private final Queue<Action> actions;
-    private int candleCount = 0;
+    private int eventCount = 0;
 
     @Override
-    public void onCandle(Candle candle, TradingContext context) {
+    public void onMarketEvent(MarketEvent event, TradingContext context) {
         Action nextAction = actions.peek();
-        if (nextAction != null && candleCount == nextAction.onCandleIndex()) {
+        if (nextAction != null && eventCount == nextAction.onCandleIndex()) {
             Action actionToExecute = actions.poll();
             context.submitOrder(
                 actionToExecute.symbol(),
                 actionToExecute.direction(),
                 actionToExecute.quantity(),
-                candle.close()
+                event.candle().close()
             );
         }
-        candleCount++;
+        eventCount++;
     }
 }

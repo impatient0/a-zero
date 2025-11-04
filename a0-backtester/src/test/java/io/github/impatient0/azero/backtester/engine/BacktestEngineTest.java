@@ -4,6 +4,7 @@ import io.github.impatient0.azero.backtester.model.BacktestConfig;
 import io.github.impatient0.azero.backtester.model.BacktestResult;
 import io.github.impatient0.azero.backtester.strategy.ConfigurableTestStrategy;
 import io.github.impatient0.azero.backtester.util.TestDataFactory;
+import io.github.impatient0.azero.core.event.MarketEvent;
 import io.github.impatient0.azero.core.model.AccountMode;
 import io.github.impatient0.azero.core.model.Candle;
 import io.github.impatient0.azero.core.model.Position;
@@ -196,12 +197,12 @@ class BacktestEngineTest {
             // First buy
             Candle firstCandle = candles.getFirst();
             context.updateCurrentPrices(Map.of("BTC", firstCandle.close(), "USDT", BigDecimal.ONE));
-            strategy.onCandle(firstCandle, context);
+            strategy.onMarketEvent(new MarketEvent("BTCUSDT", firstCandle), context);
 
             // Second buy (scale in)
             Candle secondCandle = candles.get(1);
             context.updateCurrentPrices(Map.of("BTC", secondCandle.close(), "USDT", BigDecimal.ONE));
-            strategy.onCandle(secondCandle, context);
+            strategy.onMarketEvent(new MarketEvent("BTCUSDT", secondCandle), context);
 
             // --- ASSERT ---
             Optional<Position> finalPositionOpt = context.getOpenPosition("BTCUSDT");
@@ -408,7 +409,7 @@ class BacktestEngineTest {
             Candle firstCandle = historicalData.get("BTCUSDT").getFirst();
             Map<String, BigDecimal> prices = Map.of("BTC", firstCandle.close(), "USDT", BigDecimal.ONE);
             context.updateCurrentPrices(prices);
-            strategy.onCandle(firstCandle, context);
+            strategy.onMarketEvent(new MarketEvent("BTCUSDT", firstCandle), context);
 
             // --- ASSERT ---
             // 1. Verify the wallet balances.
@@ -623,12 +624,12 @@ class BacktestEngineTest {
             // First buy
             Candle firstCandle = candles.getFirst();
             context.updateCurrentPrices(Map.of("BTC", firstCandle.close(), "USDT", BigDecimal.ONE));
-            strategy.onCandle(firstCandle, context);
+            strategy.onMarketEvent(new MarketEvent("BTCUSDT", firstCandle), context);
 
             // Second buy (scale in)
             Candle secondCandle = candles.get(1);
             context.updateCurrentPrices(Map.of("BTC", secondCandle.close(), "USDT", BigDecimal.ONE));
-            strategy.onCandle(secondCandle, context);
+            strategy.onMarketEvent(new MarketEvent("BTCUSDT", secondCandle), context);
 
             // --- ASSERT ---
             Optional<Position> finalPositionOpt = context.getOpenPosition("BTCUSDT");
@@ -692,12 +693,12 @@ class BacktestEngineTest {
             // First buy
             Candle firstCandle = candles.getFirst();
             context.updateCurrentPrices(Map.of("ETH", firstCandle.close(), "USDT", BigDecimal.ONE));
-            strategy.onCandle(firstCandle, context);
+            strategy.onMarketEvent(new MarketEvent("BTCUSDT", firstCandle), context);
 
             // Partial sell (scale out)
             Candle secondCandle = candles.get(1);
             context.updateCurrentPrices(Map.of("ETH", secondCandle.close(), "USDT", BigDecimal.ONE));
-            strategy.onCandle(secondCandle, context);
+            strategy.onMarketEvent(new MarketEvent("BTCUSDT", secondCandle), context);
 
             // --- ASSERT ---
             Optional<Position> finalPositionOpt = context.getOpenPosition("ETHUSDT");
