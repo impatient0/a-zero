@@ -9,5 +9,13 @@ package io.github.impatient0.azero.core.model;
  */
 public enum TradeDirection {
     LONG,
-    SHORT
+    SHORT;
+
+    /**
+     * Returns the opposite trading direction.
+     * @return {@code SHORT} if the current direction is {@code LONG}, and vice-versa.
+     */
+    public TradeDirection opposite() {
+        return this == LONG ? SHORT : LONG;
+    }
 }
