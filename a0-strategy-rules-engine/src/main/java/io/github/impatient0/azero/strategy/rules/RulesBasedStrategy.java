@@ -25,7 +25,7 @@ public class RulesBasedStrategy implements Strategy {
     private final TradeDirection direction;
     private final List<Indicator> entryIndicators;
     private final List<ExitRule> exitRules;
-    private final PositionSizer positionSizer; // NEW: Position Sizer
+    private final PositionSizer positionSizer;
     private final int maxLookbackPeriod;
     private int barCount = 0;
 
