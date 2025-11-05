@@ -17,6 +17,7 @@ import java.util.List;
  *                     This is used to correctly configure the underlying technical indicators.
  * @param entryRules   A list of indicator-based rules that must all be true to trigger a position entry.
  * @param exitRules    A list of rules that define the conditions for exiting a position (e.g., stop-loss).
+ * @param positionSizing The configuration for the position sizing logic.
  */
 public record StrategyConfig(
     @JsonProperty("strategy_name")
@@ -32,5 +33,8 @@ public record StrategyConfig(
     List<IndicatorConfig> entryRules,
 
     @JsonProperty("exit_rules")
-    List<ExitRuleConfig> exitRules
+    List<ExitRuleConfig> exitRules,
+
+    @JsonProperty("position_sizing")
+    PositionSizingConfig positionSizing
 ) {}
