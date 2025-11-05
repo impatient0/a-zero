@@ -417,8 +417,8 @@ class BacktestEngineTest {
             //    - Correct USDT: 20000 (initial) - 12500 (margin locked) = 7500.
             //    - We will test this by checking the final NAV in a full run, but for the wallet:
             //      Wallet should contain a liability of -0.5 BTC and proceeds of +25000 USDT.
-            BigDecimal balanceBtc = context.getWalletBalanceForTest("BTC");
-            BigDecimal balanceUsdt = context.getWalletBalanceForTest("USDT");
+            BigDecimal balanceBtc = context.getAssetBalance("BTC");
+            BigDecimal balanceUsdt = context.getAssetBalance("USDT");
             assertEquals(0, new BigDecimal("-0.5").compareTo(balanceBtc), "Wallet should have a liability of -0.5 BTC.");
             assertEquals(0, new BigDecimal("45000").compareTo(balanceUsdt), "Wallet should have 20k initial + 25k proceeds.");
 

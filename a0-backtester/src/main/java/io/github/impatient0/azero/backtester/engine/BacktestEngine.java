@@ -221,6 +221,57 @@ public class BacktestEngine {
 
         /**
          * {@inheritDoc}
+         */
+        @Override
+        public Optional<Position> getOpenPosition(String symbol) {
+            return Optional.ofNullable(openPositions.get(symbol));
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Map<String, Position> getOpenPositions() {
+            return Collections.unmodifiableMap(openPositions);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public BigDecimal getNetAssetValue() {
+            return calculateNetAssetValue(this.currentPrices);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public BigDecimal getMarginEquity() {
+            if (accountMode == AccountMode.SPOT_ONLY) {
+                return calculateNetAssetValue(this.currentPrices);
+            }
+            return calculateTotalEquity(this.currentPrices);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Map<String, BigDecimal> getWalletBalances() {
+            return Collections.unmodifiableMap(this.wallet);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public BigDecimal getAssetBalance(String asset) {
+            return this.wallet.getOrDefault(asset, BigDecimal.ZERO);
+        }
+
+        /**
+         * {@inheritDoc}
          * <p>
          * In this backtesting implementation, the order is simulated against historical data.
          * The execution price will be adjusted for the configured slippage, and the order
@@ -253,22 +304,6 @@ public class BacktestEngine {
                     closeOrScaleOutSpot(symbol, baseAsset, quoteAsset, quantity, price);
                 }
             }
-        }
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public Optional<Position> getOpenPosition(String symbol) {
-            return Optional.ofNullable(openPositions.get(symbol));
-        }
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public Map<String, Position> getOpenPositions() {
-            return Collections.unmodifiableMap(openPositions);
         }
 
         /**
@@ -752,18 +787,6 @@ public class BacktestEngine {
                 return BigDecimal.ZERO;
             }
             return totalValue.multiply(partQuantity).divide(wholeQuantity, PRICE_SCALE, RoundingMode.HALF_UP);
-        }
-
-        /**
-         * Retrieves the balance of a specific asset from the wallet.
-         * <p>
-         * <b>Note:</b> This method is package-private and intended for testing purposes only.
-         *
-         * @param asset The asset symbol (e.g., "BTC", "USDT").
-         * @return The current balance of the asset, or {@link BigDecimal#ZERO} if not present.
-         */
-        BigDecimal getWalletBalanceForTest(String asset) {
-            return wallet.getOrDefault(asset, BigDecimal.ZERO);
         }
 
         /**
