@@ -1,6 +1,7 @@
 package io.github.impatient0.azero.core.model;
 
 import java.math.BigDecimal;
+import lombok.With;
 
 /**
  * Represents a single financial candlestick (K-line), providing a summary
@@ -15,6 +16,7 @@ import java.math.BigDecimal;
  * @param close     The price at the end of the period.
  * @param volume    The total volume of the asset traded during the period.
  */
+@With
 public record Candle(
     long timestamp,
     BigDecimal open,
