@@ -9,6 +9,7 @@ import io.github.impatient0.azero.core.strategy.TradingContext;
 import io.github.impatient0.azero.strategy.rules.exit.ExitRule;
 import io.github.impatient0.azero.strategy.rules.indicator.Indicator;
 import io.github.impatient0.azero.strategy.rules.sizing.PositionSizer;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import java.util.List;
 
 @Slf4j
 @RequiredArgsConstructor
+@Getter(AccessLevel.PACKAGE)
 public class RulesBasedStrategy implements Strategy {
     @Getter
     private final String name;
