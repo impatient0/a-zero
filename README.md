@@ -18,6 +18,7 @@ Our core guiding principles are:
 
 *   **Core Data Models & Interfaces:** A stable, lightweight `a0-core` module provides shared, immutable data models and clear interfaces.
 *   **Realistic Backtesting Engine:** The `a0-backtester` library provides a robust engine for simulating strategies with support for trading costs (fees, slippage) and flexible position management (scaling in/out).
+*   **Core Data Models & Interfaces:** A stable, lightweight `a0-core` module provides shared, immutable data models and clear interfaces.
 *   **Data Ingestion Utility:** A simple CLI tool for downloading historical K-line data from exchanges like Binance.
 *   **Pluggable Strategy Interface:** Define your trading logic by implementing a simple `Strategy` interface.
 *   **Clean, Modern Java:** Built with modern Java and a minimal set of dependencies, ready for integration with frameworks like Spring.
@@ -38,7 +39,7 @@ This project is in its early stages. Our planned development path is:
     *   [x] `a0-backtester`: Core library for strategy simulation.
 *   [ ] **v0.2:** Command-Line Backtester and Strategy Integration.
     *   [x] `a0-backtester`: Implement strategy loading and execution within the `BacktestEngine`.
-    *   [ ] `a0-strategy-rules-engine`: Build the engine to parse YAML-based strategies.
+    *   [x] `a0-strategy-rules-engine`: Build the engine to parse YAML-based strategies.
     *   [ ] `a0-backtester-cli`: Build the command-line application to run backtests.
 *   [ ] **v0.3:** Initial hooks and interfaces for sentiment analysis modules.
 *   [ ] **v0.4:** Integration with exchange Testnet APIs for paper trading.
