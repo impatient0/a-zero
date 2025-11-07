@@ -161,4 +161,11 @@
     </pluginManagement>
   </build>
 
+  <scm>
+    <connection>scm:git:git@github.com:impatient0/a-zero.git</connection>
+    <developerConnection>scm:git:git@github.com:impatient0/a-zero.git</developerConnection>
+    <url>https://github.com/impatient0/a-zero</url>
+    <tag>HEAD</tag>
+  </scm>
+
 </project>
