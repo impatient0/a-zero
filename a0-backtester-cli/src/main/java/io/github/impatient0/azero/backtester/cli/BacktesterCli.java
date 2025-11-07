@@ -58,46 +58,50 @@ public class BacktesterCli implements Callable<Integer> {
      * The main application logic. This method is executed when the command is run.
      *
      * @return 0 on success, 1 on failure.
-     * @throws Exception if an error occurs during the backtest.
      */
-
     @Override
-    public Integer call() throws Exception {
-        log.info("--- A-Zero Backtester Initializing ---");
-        log.info("Strategy: {}, Symbol: {}, Mode: {}", strategyFile, symbol, accountMode);
-        log.info("Data File: {}", dataFile);
+    public Integer call() {
+        try {
+            log.info("--- A-Zero Backtester Initializing ---");
+            log.info("Strategy: {}, Symbol: {}, Mode: {}", strategyFile, symbol, accountMode);
+            log.info("Data File: {}", dataFile);
 
-        // 1. Load Strategy
-        StrategyLoader strategyLoader = new StrategyLoader();
-        RulesBasedStrategy strategy = strategyLoader.loadFromYaml(strategyFile, symbol);
-        log.info("Successfully loaded strategy '{}'", strategy.getName());
+            // 1. Load Strategy
+            StrategyLoader strategyLoader = new StrategyLoader();
+            RulesBasedStrategy strategy = strategyLoader.loadFromYaml(strategyFile, symbol);
+            log.info("Successfully loaded strategy '{}'", strategy.getName());
 
-        // 2. Load Data
-        List<Candle> historicalData = CsvDataLoader.load(dataFile);
+            // 2. Load Data
+            List<Candle> historicalData = CsvDataLoader.load(dataFile);
 
-        // 3. Configure Engine
-        BacktestConfig config = BacktestConfig.builder()
-            .historicalData(Map.of(symbol, historicalData)) // Create the required Map
-            .initialCapital(initialCapital)
-            .strategy(strategy)
-            .accountMode(accountMode)
-            .marginLeverage(leverage)
-            // Using hardcoded defaults for now, can be exposed as CLI options in the future
-            .tradingFeePercentage(new BigDecimal("0.001")) // 0.1%
-            .slippagePercentage(new BigDecimal("0.0005")) // 0.05%
-            .build();
-        log.info("Backtest configured. Initial capital: ${}, Leverage: {}x", initialCapital, leverage);
+            // 3. Configure Engine
+            BacktestConfig config = BacktestConfig.builder()
+                .historicalData(Map.of(symbol, historicalData)) // Create the required Map
+                .initialCapital(initialCapital).strategy(strategy).accountMode(accountMode)
+                .marginLeverage(leverage)
+                // Using hardcoded defaults for now, can be exposed as CLI options in the future
+                .tradingFeePercentage(new BigDecimal("0.001")) // 0.1%
+                .slippagePercentage(new BigDecimal("0.0005")) // 0.05%
+                .build();
+            log.info("Backtest configured. Initial capital: ${}, Leverage: {}x", initialCapital,
+                leverage);
 
-        // 4. Run Simulation
-        log.info("--- Starting Simulation ---");
-        BacktestEngine engine = new BacktestEngine();
-        BacktestResult result = engine.run(config);
-        log.info("--- Simulation Complete ---");
+            // 4. Run Simulation
+            log.info("--- Starting Simulation ---");
+            BacktestEngine engine = new BacktestEngine();
+            BacktestResult result = engine.run(config);
+            log.info("--- Simulation Complete ---");
 
-        // 5. Report Results
-        printResults(result);
+            // 5. Report Results
+            printResults(result);
 
-        return 0; // Success
+            return 0; // Success
+        } catch (Exception e) {
+            log.error("FATAL: A critical error occurred during the backtest execution.", e);
+            System.err.println("\nERROR: " + e.getMessage());
+            System.err.println("Please check the log file for the full stack trace and ensure all input files are valid.");
+            return 1; // Failure
+        }
     }
 
     /**
