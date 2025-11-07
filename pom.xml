@@ -17,6 +17,7 @@
     <module>a0-core</module>
     <module>a0-backtester</module>
     <module>a0-strategy-rules-engine</module>
+    <module>a0-backtester-cli</module>
   </modules>
 
   <properties>
