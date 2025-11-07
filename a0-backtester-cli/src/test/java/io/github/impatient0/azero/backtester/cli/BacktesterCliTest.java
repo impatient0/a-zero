@@ -49,9 +49,7 @@ class BacktesterCliTest {
 
             // --- ACT ---
             AtomicInteger exitCode = new AtomicInteger(-1);
-            String stdOut = SystemLambda.tapSystemOut(() -> {
-                exitCode.set(new CommandLine(new BacktesterCli()).execute(args));
-            });
+            String stdOut = SystemLambda.tapSystemOut(() -> exitCode.set(new CommandLine(new BacktesterCli()).execute(args)));
 
             // --- ASSERT ---
             assertEquals(0, exitCode.get(), "The process should exit with code 0 for success.");
@@ -81,9 +79,7 @@ class BacktesterCliTest {
 
             // --- ACT ---
             AtomicInteger exitCode = new AtomicInteger(0);
-            String stdErr = SystemLambda.tapSystemErr(() -> {
-                exitCode.set(new CommandLine(new BacktesterCli()).execute(args));
-            });
+            String stdErr = SystemLambda.tapSystemErr(() -> exitCode.set(new CommandLine(new BacktesterCli()).execute(args)));
 
             // --- ASSERT ---
             // 1. Assert that the process exits with a non-zero (error) code.
@@ -111,9 +107,7 @@ class BacktesterCliTest {
 
             // --- ACT ---
             AtomicInteger exitCode = new AtomicInteger(0);
-            String stdErr = SystemLambda.tapSystemErr(() -> {
-                exitCode.set(new CommandLine(new BacktesterCli()).execute(args));
-            });
+            String stdErr = SystemLambda.tapSystemErr(() -> exitCode.set(new CommandLine(new BacktesterCli()).execute(args)));
 
             // --- ASSERT ---
             // 1. Assert the process exits with picocli's standard error code.
@@ -150,9 +144,7 @@ class BacktesterCliTest {
 
             // --- ACT ---
             AtomicInteger exitCode = new AtomicInteger(0);
-            String stdOut = SystemLambda.tapSystemOut(() -> {
-                exitCode.set(new CommandLine(new BacktesterCli()).execute(args));
-            });
+            String stdOut = SystemLambda.tapSystemOut(() -> exitCode.set(new CommandLine(new BacktesterCli()).execute(args)));
 
             // --- ASSERT ---
             // 1. Assert the process exits with a generic failure code (1).
@@ -186,9 +178,7 @@ class BacktesterCliTest {
 
             // --- ACT ---
             AtomicInteger exitCode = new AtomicInteger(0);
-            String stdErr = SystemLambda.tapSystemErr(() -> {
-                exitCode.set(new CommandLine(new BacktesterCli()).execute(args));
-            });
+            String stdErr = SystemLambda.tapSystemErr(() -> exitCode.set(new CommandLine(new BacktesterCli()).execute(args)));
 
             // --- ASSERT ---
             // 1. Assert the process exits with our generic failure code.
@@ -236,15 +226,11 @@ class BacktesterCliTest {
             // --- ACT ---
             // Run the SPOT backtest
             AtomicInteger spotExitCode = new AtomicInteger(-1);
-            String spotStdOut = SystemLambda.tapSystemOut(() -> {
-                spotExitCode.set(new CommandLine(new BacktesterCli()).execute(spotArgs));
-            });
+            String spotStdOut = SystemLambda.tapSystemOut(() -> spotExitCode.set(new CommandLine(new BacktesterCli()).execute(spotArgs)));
 
             // Run the MARGIN backtest
             AtomicInteger marginExitCode = new AtomicInteger(-1);
-            String marginStdOut = SystemLambda.tapSystemOut(() -> {
-                marginExitCode.set(new CommandLine(new BacktesterCli()).execute(marginArgs));
-            });
+            String marginStdOut = SystemLambda.tapSystemOut(() -> marginExitCode.set(new CommandLine(new BacktesterCli()).execute(marginArgs)));
 
             // --- ASSERT ---
             // 1. Assert both runs were successful.

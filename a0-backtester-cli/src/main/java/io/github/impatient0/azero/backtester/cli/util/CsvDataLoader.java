@@ -1,7 +1,6 @@
 package io.github.impatient0.azero.backtester.cli.util;
 
 import io.github.impatient0.azero.core.model.Candle;
-import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
