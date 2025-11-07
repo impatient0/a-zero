@@ -1,13 +1,25 @@
 package io.github.impatient0.azero.backtester.cli;
 
 import io.github.impatient0.azero.core.model.AccountMode;
+import io.github.impatient0.azero.core.model.Candle;
+import io.github.impatient0.azero.backtester.cli.util.CsvDataLoader;
+import io.github.impatient0.azero.backtester.engine.BacktestEngine;
+import io.github.impatient0.azero.backtester.model.BacktestConfig;
+import io.github.impatient0.azero.backtester.model.BacktestResult;
+import io.github.impatient0.azero.strategy.rules.RulesBasedStrategy;
+import io.github.impatient0.azero.strategy.rules.loader.StrategyLoader;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
+import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
+import java.text.NumberFormat;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * The main command-line interface for the A-Zero backtesting application.
@@ -15,6 +27,7 @@ import java.util.concurrent.Callable;
  * This class uses picocli to parse command-line arguments and orchestrates the
  * loading of data, strategy configuration, and the execution of the backtest engine.
  */
+@Slf4j
 @Command(
     name = "a0-backtester-cli",
     mixinStandardHelpOptions = true,
@@ -47,17 +60,62 @@ public class BacktesterCli implements Callable<Integer> {
      * @return 0 on success, 1 on failure.
      * @throws Exception if an error occurs during the backtest.
      */
+
     @Override
     public Integer call() throws Exception {
-        // TODO: implement actual logic here
-        System.out.println("Backtester CLI Initialized (Logic to be implemented)");
-        System.out.println("Strategy File: " + strategyFile);
-        System.out.println("Data File: " + dataFile);
-        System.out.println("Symbol: " + symbol);
-        System.out.println("Account Mode: " + accountMode);
-        System.out.println("Initial Capital: " + initialCapital);
-        System.out.println("Leverage: " + leverage);
+        log.info("--- A-Zero Backtester Initializing ---");
+        log.info("Strategy: {}, Symbol: {}, Mode: {}", strategyFile, symbol, accountMode);
+        log.info("Data File: {}", dataFile);
+
+        // 1. Load Strategy
+        StrategyLoader strategyLoader = new StrategyLoader();
+        RulesBasedStrategy strategy = strategyLoader.loadFromYaml(strategyFile, symbol);
+        log.info("Successfully loaded strategy '{}'", strategy.getName());
+
+        // 2. Load Data
+        List<Candle> historicalData = CsvDataLoader.load(dataFile);
+
+        // 3. Configure Engine
+        BacktestConfig config = BacktestConfig.builder()
+            .historicalData(Map.of(symbol, historicalData)) // Create the required Map
+            .initialCapital(initialCapital)
+            .strategy(strategy)
+            .accountMode(accountMode)
+            .marginLeverage(leverage)
+            // Using hardcoded defaults for now, can be exposed as CLI options in the future
+            .tradingFeePercentage(new BigDecimal("0.001")) // 0.1%
+            .slippagePercentage(new BigDecimal("0.0005")) // 0.05%
+            .build();
+        log.info("Backtest configured. Initial capital: ${}, Leverage: {}x", initialCapital, leverage);
+
+        // 4. Run Simulation
+        log.info("--- Starting Simulation ---");
+        BacktestEngine engine = new BacktestEngine();
+        BacktestResult result = engine.run(config);
+        log.info("--- Simulation Complete ---");
+
+        // 5. Report Results
+        printResults(result);
+
         return 0; // Success
+    }
+
+    /**
+     * Formats and prints the backtest result summary to the console.
+     * @param result The result object from the backtest engine.
+     */
+    private void printResults(BacktestResult result) {
+        NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(Locale.US);
+        NumberFormat percentFormatter = NumberFormat.getPercentInstance(Locale.US);
+        percentFormatter.setMaximumFractionDigits(2);
+
+        System.out.println("\n================== Backtest Results ==================");
+        System.out.printf("Final Portfolio Value: %s\n", currencyFormatter.format(result.getFinalValue()));
+        System.out.printf("Total P/L:             %s (%s)\n",
+            currencyFormatter.format(result.getPnl()),
+            percentFormatter.format(result.getPnlPercent() / 100.0));
+        System.out.printf("Total Trades Executed: %d\n", result.getTotalTrades());
+        System.out.println("====================================================\n");
     }
 
     /**
