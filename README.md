@@ -16,9 +16,9 @@ Our core guiding principles are:
 
 ## Core Features
 
-*   **Core Data Models & Interfaces:** A stable, lightweight `a0-core` module provides shared, immutable data models and clear interfaces.
-*   **Realistic Backtesting Engine:** The `a0-backtester` library provides a robust engine for simulating strategies with support for trading costs (fees, slippage) and flexible position management (scaling in/out).
-*   **Core Data Models & Interfaces:** A stable, lightweight `a0-core` module provides shared, immutable data models and clear interfaces.
+*   **Command-Line Backtester:** A powerful and fast CLI tool to run your strategies against historical data and generate performance reports.
+*   **Declarative Strategy Definition:** Define complex trading strategies in simple, human-readable YAML files using a rules-based approach.
+*   **Realistic Simulation Engine:** A backtesting library with a portfolio margin model, trading costs (fees, slippage), and forced liquidation for margin calls.
 *   **Data Ingestion Utility:** A simple CLI tool for downloading historical K-line data from exchanges like Binance.
 *   **Pluggable Strategy Interface:** Define your trading logic by implementing a simple `Strategy` interface.
 *   **Clean, Modern Java:** Built with modern Java and a minimal set of dependencies, ready for integration with frameworks like Spring.
@@ -40,14 +40,14 @@ This project is in its early stages. Our planned development path is:
 *   [ ] **v0.2:** Command-Line Backtester and Strategy Integration.
     *   [x] `a0-backtester`: Implement strategy loading and execution within the `BacktestEngine`.
     *   [x] `a0-strategy-rules-engine`: Build the engine to parse YAML-based strategies.
-    *   [ ] `a0-backtester-cli`: Build the command-line application to run backtests.
+    *   [x] `a0-backtester-cli`: Build the command-line application to run backtests.
 *   [ ] **v0.3:** Initial hooks and interfaces for sentiment analysis modules.
 *   [ ] **v0.4:** Integration with exchange Testnet APIs for paper trading.
 *   [ ] **v1.0:** A stable, production-ready framework for live spot trading.
 
 ## Getting Started
 
-The A-Zero framework is under active development. The first available tool is the `data-ingestor`.
+The A-Zero framework is under active development. It currently provides two primary command-line tools: a data ingestor and a backtester.
 
 ### Downloading Historical Data
 
@@ -60,6 +60,25 @@ The A-Zero framework is under active development. The first available tool is th
    ```
 
 This will create a `BTCUSDT-1h.csv` file in your project root, ready for use with the backtesting engine.
+
+### 2. Running a Backtest
+
+Once you have data, you can run a simulation using the `backtester-cli`.
+
+1.  **Define a Strategy:** Create a strategy configuration file (e.g., `my-strategy.yaml`). You can use the example in the [`a0-strategy-rules-engine` README](a0-strategy-rules-engine/README.md) as a template.
+
+2.  **Run the Backtester:** Execute the backtester JAR, pointing it to your strategy and data files.
+
+    ```bash
+    java -jar a0-backtester-cli/target/a0-backtester-cli-*.jar \
+      --strategy-file=my-strategy.yaml \
+      --data-file=data/BTCUSDT-1h.csv \
+      --symbol=BTCUSDT \
+      --account-mode=MARGIN \
+      --leverage=10
+    ```
+
+    This will run the simulation and print a performance summary to your console.
 
 ## License
 

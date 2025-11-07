@@ -20,12 +20,12 @@ This project follows an "Open Core" model, separating the reusable framework fro
     1.  `a0-core`: Defines the essential public interfaces (`Strategy`, `TradingContext`) and data models (`Candle`). A lightweight library with minimal dependencies.
     2.  `a0-data-ingestor`: A CLI tool that fetches and stores historical market data.
     3.  `a0-backtester`: A library containing the core backtesting engine for simulating `Strategy` instances. This module has no knowledge of how strategies are defined (e.g., via YAML or code).
-  4.  `a0-strategy-rules-engine`: A library that can parse declarative strategy definitions (from YAML files) and construct an executable `Strategy` object. This module contains all technical analysis library dependencies.
+    4.  `a0-strategy-rules-engine`: A library that can parse declarative strategy definitions (from YAML files) and construct an executable `Strategy` object. This module contains all technical analysis library dependencies.
     5.  `a0-backtester-cli`: A command-line tool that consumes all the above libraries to provide a user-facing backtesting application.
 - **Data Flow:**
     - The `data-ingestor` produces CSV data files.
     - The `strategy-rules-engine` consumes a strategy YAML file and produces a `Strategy` object.
-    - The `backtester-cli` will consume the CSV files, use the `strategy-rules-engine` to load a strategy, and then pass the data and the `Strategy` object to the `a0-backtester` library to run the simulation.
+    - The `backtester-cli` consumes the CSV files, uses the `strategy-rules-engine` to load a strategy, and then passes the data and the `Strategy` object to the `a0-backtester` library to run the simulation.
 
 ## 3. Module Specifications
 
@@ -63,7 +63,8 @@ This project follows an "Open Core" model, separating the reusable framework fro
 - **Outputs:** An instantiated Java object that implements the `io.github.impatient0.azero.core.strategy.Strategy` interface.
 
 ### 3.5 Module: `a0-backtester-cli` (Application)
-- **Status:** Planned for v0.2
+- **Status:** Implemented in v0.2
+- **Documentation:** See Backtester CLI's [README.md](a0-backtester-cli/README.md)
 - **Responsibility:** To provide a user-facing command-line interface for the backtester. It wires together the data, the backtesting engine, and the strategy rules engine to run a full simulation.
 - **Inputs:** Command-line arguments specifying paths to data files and strategy definition files.
 - **Outputs:** A formatted performance summary printed to the console.
