@@ -1,0 +1,8 @@
+strategy_name: "Simple RSI Long"
+direction: LONG
+timeframe: "1h"
+position_sizing: { type: "Fixed_Percentage", percentage: 50.0 }
+entry_rules:
+  - { indicator: "RSI", period: 14, condition: "less_than", value: 100 } # Always true
+exit_rules:
+  - { type: "TakeProfit", percentage: 5.0 }

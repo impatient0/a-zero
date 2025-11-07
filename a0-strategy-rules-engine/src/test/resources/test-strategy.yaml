@@ -1,0 +1,19 @@
+strategy_name: "Test RSI Strategy"
+direction: LONG
+timeframe: "4h"
+
+position_sizing:
+  type: "Fixed_Percentage"
+  percentage: 2.5
+
+entry_rules:
+  - indicator: "RSI"
+    period: 14
+    condition: "less_than"
+    value: 30
+
+exit_rules:
+  - type: "StopLoss"
+    percentage: 2.0
+  - type: "TakeProfit"
+    percentage: 5.0

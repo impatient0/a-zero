@@ -10,45 +10,44 @@
     <version>0.1.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>a0-data-ingestor</artifactId>
+  <artifactId>a0-backtester-cli</artifactId>
+  <packaging>jar</packaging>
 
-  <name>A-Zero :: Data Ingestor</name>
-  <description>Command-line tool to fetch historical market data from Binance.</description>
+  <name>A-Zero :: Backtester CLI</name>
+  <description>A command-line application to run backtest simulations.</description>
+
+  <properties>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
 
   <dependencies>
     <!-- ============================================================= -->
-    <!-- CORE APPLICATION AND EXTERNAL APIS                            -->
+    <!-- A-ZERO INTERNAL MODULES                                       -->
     <!-- ============================================================= -->
     <dependency>
-      <groupId>io.github.binance</groupId>
-      <artifactId>binance-connector-java</artifactId>
+      <groupId>io.github.impatient0.azero</groupId>
+      <artifactId>a0-backtester</artifactId>
+      <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>io.github.impatient0.azero</groupId>
+      <artifactId>a0-strategy-rules-engine</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- ============================================================= -->
+    <!-- CORE APPLICATION FRAMEWORK                                    -->
+    <!-- ============================================================= -->
     <dependency>
       <groupId>info.picocli</groupId>
       <artifactId>picocli</artifactId>
     </dependency>
 
     <!-- ============================================================= -->
-    <!-- DATA SERIALIZATION AND UTILITIES                              -->
+    <!-- LOGGING (Implementation)                                      -->
     <!-- ============================================================= -->
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-csv</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>tools.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-    </dependency>
-
-    <!-- ============================================================= -->
-    <!-- LOGGING                                                       -->
-    <!-- ============================================================= -->
-    <!-- API -->
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-    </dependency>
-    <!-- Implementation -->
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
@@ -60,6 +59,7 @@
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <!-- ============================================================= -->
@@ -71,13 +71,8 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-junit-jupiter</artifactId>
+      <groupId>com.github.stefanbirkner</groupId>
+      <artifactId>system-lambda</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -113,7 +108,7 @@
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                   <manifestEntries>
-                    <Main-Class>io.github.impatient0.azero.ingestor.DataIngestor</Main-Class>
+                    <Main-Class>io.github.impatient0.azero.backtester.cli.BacktesterCli</Main-Class>
                     <X-Compile-Source-JDK>${maven.compiler.source}</X-Compile-Source-JDK>
                     <X-Compile-Target-JDK>${maven.compiler.target}</X-Compile-Target-JDK>
                   </manifestEntries>
