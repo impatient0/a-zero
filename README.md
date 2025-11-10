@@ -65,7 +65,7 @@ This will create a `BTCUSDT-1h.csv` file in your project root, ready for use wit
 
 Once you have data, you can run a simulation using the `backtester-cli`.
 
-1.  **Define a Strategy:** Create a strategy configuration file (e.g., `my-strategy.yaml`). You can use the example in the [`a0-strategy-rules-engine` README](a0-strategy-rules-engine/README.md) as a template.
+1.  **Define a Strategy:** Create a strategy configuration file (e.g., `my-strategy.yaml`). You can use the example in the [`a0-strategy-rules-engine` README](backtesting/a0-strategy-rules-engine/README.md) as a template.
 
 2.  **Run the Backtester:** Execute the backtester JAR, pointing it to your strategy and data files.
 

@@ -4,8 +4,9 @@
 
   <parent>
     <groupId>io.github.impatient0.azero</groupId>
-    <artifactId>a-zero-parent</artifactId>
-    <version>0.2.1-SNAPSHOT</version>
+    <artifactId>backtesting</artifactId>
+    <version>${revision}</version>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>a0-backtester</artifactId>

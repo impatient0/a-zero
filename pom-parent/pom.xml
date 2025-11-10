@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>io.github.impatient0.azero</groupId>
+  <artifactId>pom-parent</artifactId>
+  <version>${revision}</version>
+  <packaging>pom</packaging>
+
+  <name>A-Zero :: Parent</name>
+  <description>Parent POM and Bill of Materials (BOM) for the A-Zero crypto trading framework.</description>
+
+  <properties>
+    <!-- ============================================================= -->
+    <!-- PROJECT-WIDE PROPERTIES                                       -->
+    <!-- ============================================================= -->
+    <revision>0.3.0-SNAPSHOT</revision>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+
+    <!-- ============================================================= -->
+    <!-- CENTRALIZED DEPENDENCY VERSIONS                               -->
+    <!-- ============================================================= -->
+    <binance-connector.version>3.4.1</binance-connector.version>
+    <picocli.version>4.7.7</picocli.version>
+    <commons-csv.version>1.14.1</commons-csv.version>
+    <jackson.version>3.0.1</jackson.version>
+    <slf4j.version>2.0.17</slf4j.version>
+    <logback.version>1.5.20</logback.version>
+    <lombok.version>1.18.42</lombok.version>
+    <maven-shade-plugin.version>3.6.1</maven-shade-plugin.version>
+    <ta4j.version>0.18</ta4j.version>
+
+    <!-- ============================================================= -->
+    <!-- TEST DEPENDENCY VERSIONS                                      -->
+    <!-- ============================================================= -->
+    <mockito.version>5.20.0</mockito.version>
+    <junit.version>6.0.0</junit.version>
+    <system-lambda.version>1.2.1</system-lambda.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- ============================================================= -->
+      <!-- CORE APPLICATION AND EXTERNAL APIS                            -->
+      <!-- ============================================================= -->
+      <dependency>
+        <groupId>io.github.binance</groupId>
+        <artifactId>binance-connector-java</artifactId>
+        <version>${binance-connector.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>info.picocli</groupId>
+        <artifactId>picocli</artifactId>
+        <version>${picocli.version}</version>
+      </dependency>
+
+      <!-- ============================================================= -->
+      <!-- DATA SERIALIZATION AND UTILITIES                              -->
+      <!-- ============================================================= -->
+      <dependency>
+        <groupId>tools.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>tools.jackson.dataformat</groupId>
+        <artifactId>jackson-dataformat-yaml</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-csv</artifactId>
+        <version>${commons-csv.version}</version>
+      </dependency>
+
+      <!-- ============================================================= -->
+      <!-- TECHNICAL ANALYSIS                                            -->
+      <!-- ============================================================= -->
+      <dependency>
+        <groupId>org.ta4j</groupId>
+        <artifactId>ta4j-core</artifactId>
+        <version>${ta4j.version}</version>
+      </dependency>
+
+      <!-- ============================================================= -->
+      <!-- LOGGING                                                       -->
+      <!-- ============================================================= -->
+      <!-- API -->
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>${slf4j.version}</version>
+      </dependency>
+      <!-- Implementation -->
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-classic</artifactId>
+        <version>${logback.version}</version>
+      </dependency>
+
+      <!-- ============================================================= -->
+      <!-- BUILD-TIME / DEVELOPER TOOLS                                  -->
+      <!-- ============================================================= -->
+      <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>${lombok.version}</version>
+        <scope>provided</scope>
+      </dependency>
+
+      <!-- ============================================================= -->
+      <!-- TESTING                                                       -->
+      <!-- ============================================================= -->
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-api</artifactId>
+        <version>${junit.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter-params</artifactId>
+        <version>${junit.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <version>${mockito.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-junit-jupiter</artifactId>
+        <version>${mockito.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.github.stefanbirkner</groupId>
+        <artifactId>system-lambda</artifactId>
+        <version>${system-lambda.version}</version>
+        <scope>test</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-shade-plugin</artifactId>
+          <version>${maven-shade-plugin.version}</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+
+</project>

@@ -4,48 +4,50 @@
 
   <parent>
     <groupId>io.github.impatient0.azero</groupId>
-    <artifactId>a-zero-parent</artifactId>
-    <version>0.2.1-SNAPSHOT</version>
+    <artifactId>services</artifactId>
+    <version>${revision}</version>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>a0-backtester-cli</artifactId>
-  <packaging>jar</packaging>
+  <artifactId>a0-data-ingestor</artifactId>
 
-  <name>A-Zero :: Backtester CLI</name>
-  <description>A command-line application to run backtest simulations.</description>
-
-  <properties>
-    <maven.compiler.source>21</maven.compiler.source>
-    <maven.compiler.target>21</maven.compiler.target>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  </properties>
+  <name>A-Zero :: Data Ingestor</name>
+  <description>Command-line tool to fetch historical market data from Binance.</description>
 
   <dependencies>
     <!-- ============================================================= -->
-    <!-- A-ZERO INTERNAL MODULES                                       -->
+    <!-- CORE APPLICATION AND EXTERNAL APIS                            -->
     <!-- ============================================================= -->
     <dependency>
-      <groupId>io.github.impatient0.azero</groupId>
-      <artifactId>a0-backtester</artifactId>
-      <version>${project.version}</version>
+      <groupId>io.github.binance</groupId>
+      <artifactId>binance-connector-java</artifactId>
     </dependency>
-    <dependency>
-      <groupId>io.github.impatient0.azero</groupId>
-      <artifactId>a0-strategy-rules-engine</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <!-- ============================================================= -->
-    <!-- CORE APPLICATION FRAMEWORK                                    -->
-    <!-- ============================================================= -->
     <dependency>
       <groupId>info.picocli</groupId>
       <artifactId>picocli</artifactId>
     </dependency>
 
     <!-- ============================================================= -->
-    <!-- LOGGING (Implementation)                                      -->
+    <!-- DATA SERIALIZATION AND UTILITIES                              -->
     <!-- ============================================================= -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-csv</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>tools.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+
+    <!-- ============================================================= -->
+    <!-- LOGGING                                                       -->
+    <!-- ============================================================= -->
+    <!-- API -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <!-- Implementation -->
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
@@ -57,7 +59,6 @@
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <scope>provided</scope>
     </dependency>
 
     <!-- ============================================================= -->
@@ -69,8 +70,13 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.github.stefanbirkner</groupId>
-      <artifactId>system-lambda</artifactId>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -106,7 +112,7 @@
               <transformers>
                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                   <manifestEntries>
-                    <Main-Class>io.github.impatient0.azero.backtester.cli.BacktesterCli</Main-Class>
+                    <Main-Class>io.github.impatient0.azero.ingestor.DataIngestor</Main-Class>
                     <X-Compile-Source-JDK>${maven.compiler.source}</X-Compile-Source-JDK>
                     <X-Compile-Target-JDK>${maven.compiler.target}</X-Compile-Target-JDK>
                   </manifestEntries>
