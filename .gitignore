@@ -36,7 +36,3 @@ build/
 
 ### Shade ###
 **/dependency-reduced-pom.xml
-
-# Maven Release Plugin files
-release.properties
-pom.xml.releaseBackup
