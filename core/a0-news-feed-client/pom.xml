@@ -15,4 +15,37 @@
   <name>A-Zero :: News Feed Client</name>
   <description>A library for reading raw news data from various sources (e.g., CSV files).</description>
 
+  <dependencies>
+    <!-- ============================================================= -->
+    <!-- DATA SERIALIZATION AND UTILITIES                              -->
+    <!-- ============================================================= -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-csv</artifactId>
+    </dependency>
+
+    <!-- ============================================================= -->
+    <!-- LOGGING                                                       -->
+    <!-- ============================================================= -->
+    <!-- API -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <!-- Implementation -->
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+    </dependency>
+
+    <!-- ============================================================= -->
+    <!-- BUILD-TIME / DEVELOPER TOOLS                                  -->
+    <!-- ============================================================= -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
 </project>
