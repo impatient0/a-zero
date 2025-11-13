@@ -77,16 +77,23 @@ public class GeminiSentimentProvider implements SentimentProvider {
             throw new IllegalArgumentException("Model name cannot be null or blank.");
         }
 
+        this.geminiClient = createClient(apiKey);
+        this.modelName = modelName;
+        this.objectMapper = new ObjectMapper();
+    }
+
+    /**
+     * Creates the Gemini Client. Extracted to a protected method to allow for
+     * overriding in unit tests for mock injection.
+     */
+    protected Client createClient(String apiKey) {
         HttpOptions httpOptions = HttpOptions.builder()
             .retryOptions(
                 HttpRetryOptions.builder()
                     .attempts(3)
                     .build())
             .build();
-
-        this.geminiClient = Client.builder().apiKey(apiKey).httpOptions(httpOptions).build();
-        this.modelName = modelName;
-        this.objectMapper = new ObjectMapper();
+        return Client.builder().apiKey(apiKey).httpOptions(httpOptions).build();
     }
 
     /**
