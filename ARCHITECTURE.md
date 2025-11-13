@@ -69,6 +69,18 @@ This project follows an "Open Core" model, separating the reusable framework fro
 - **Inputs:** Command-line arguments specifying paths to data files and strategy definition files.
 - **Outputs:** A formatted performance summary printed to the console.
 
+### 3.6 Module: `a0-sentiment-provider` (Library)
+- **Status:** Implemented in v0.3
+- **Responsibility:** To provide a standardized interface (`SentimentProvider`) for querying sentiment analysis services (e.g., external LLMs) and the data models (`SentimentSignal`) for representing their output.
+- **Inputs:** A string of text.
+- **Outputs:** A list of `SentimentSignal` objects, each containing a symbol, sentiment, and confidence score.
+
+### 3.7 Module: `a0-news-feed-client` (Library)
+- **Status:** Implemented in v0.3
+- **Responsibility:** To provide clients for reading raw news data from various sources. The initial implementation (`CsvNewsClient`) handles loading news articles from structured CSV files.
+- **Inputs:** A path to a data file (e.g., a CSV file).
+- **Outputs:** A list of `RawNewsArticle` objects.
+
 ## 4. Data Contracts & Core Interfaces
 
 ### 4.1 Strategy Definition YAML (`strategy.yaml`)
