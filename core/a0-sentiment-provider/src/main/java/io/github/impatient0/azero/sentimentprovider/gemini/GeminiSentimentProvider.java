@@ -1,13 +1,10 @@
 package io.github.impatient0.azero.sentimentprovider.gemini;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.genai.Client;
-import com.google.genai.errors.GenAiIOException;
 import com.google.genai.types.GenerateContentConfig;
-import com.google.genai.types.GenerateContentResponse;
 import com.google.genai.types.HttpOptions;
 import com.google.genai.types.HttpRetryOptions;
 import com.google.genai.types.Schema;
@@ -15,8 +12,8 @@ import com.google.genai.types.Type;
 import io.github.impatient0.azero.sentimentprovider.SentimentProvider;
 import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
 import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
-import java.net.HttpURLConnection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -93,41 +90,39 @@ public class GeminiSentimentProvider implements SentimentProvider {
     }
 
     /**
-     * {@inheritDoc}
+     * Asynchronously sends the input text to the Google Gemini API for sentiment analysis.
      * <p>
      * This implementation sends the input text to the Google Gemini API using a
-     * structured JSON prompt. It returns an empty list if the input text is null
-     * or blank without making an API call.
+     * structured JSON prompt. It returns a {@link CompletableFuture} that completes
+     * with an empty list if the input text is null or blank without making an API call.
      *
+     * @param text The raw text to analyze.
+     * @return A non-null {@link CompletableFuture} that, upon completion, holds a
+     *         {@link List} of {@link SentimentSignal}s extracted from the text.
      * @throws SentimentProviderException if there is a communication failure with the
-     *         Gemini API or if the API's response cannot be parsed.
+     *         Gemini API or if the API's response cannot be parsed (will be set as the
+     *         exceptionally completed value of the returned future).
      */
     @Override
-    public List<SentimentSignal> analyze(String text) {
+    public CompletableFuture<List<SentimentSignal>> analyzeAsync(String text) {
         if (text == null || text.isBlank()) {
-            return List.of();
+            return CompletableFuture.completedFuture(List.of());
         }
 
         String prompt = PROMPT_TEMPLATE.replace("{inputText}", text);
 
-        try {
-            log.debug("Sending request to Gemini model '{}'...", modelName);
-            GenerateContentResponse response = geminiClient.models
-                .generateContent(this.modelName, prompt, JSON_CONFIG);
-
-            String jsonResponse = response.text();
-            log.debug("Received raw JSON response from Gemini: {}", jsonResponse);
-
-            return objectMapper.readValue(jsonResponse, new TypeReference<>() {});
-        } catch (GenAiIOException e) {
-            log.error("A network or API error occurred while contacting the Gemini API.", e);
-            throw new SentimentProviderException("Failed to get sentiment due to API/network error.", e);
-        } catch (JsonProcessingException e) {
-            log.error("Failed to parse a malformed JSON response from the Gemini API.", e);
-            throw new SentimentProviderException("Failed to parse Gemini API response.", e);
-        } catch (Exception e) {
-            log.error("An unexpected error occurred during sentiment analysis for text: '{}'", text, e);
-            throw new SentimentProviderException("An unexpected error occurred.", e);
-        }
+        log.debug("Sending async request to Gemini model '{}'...", modelName);
+        return geminiClient.async.models
+            .generateContent(this.modelName, prompt, JSON_CONFIG)
+            .thenApply(response -> {
+                String jsonResponse = response.text();
+                log.debug("Received async raw JSON response from Gemini: {}", jsonResponse);
+                try {
+                    return objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+                } catch (Exception e) {
+                    log.error("Asynchronous sentiment analysis failed for text: '{}'", text, e);
+                    throw new SentimentProviderException("Failed to get sentiment from Gemini API.", e);
+                }
+            });
     }
 }
