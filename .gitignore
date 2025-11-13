@@ -36,3 +36,6 @@ build/
 
 ### Shade ###
 **/dependency-reduced-pom.xml
+
+# Secrets file
+.env
