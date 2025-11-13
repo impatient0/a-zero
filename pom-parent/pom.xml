@@ -33,6 +33,7 @@
     <ta4j.version>0.18</ta4j.version>
     <google.genai.version>1.27.0</google.genai.version>
     <flatten-maven-plugin.version>1.7.3</flatten-maven-plugin.version>
+    <dotenv-java.version>3.2.0</dotenv-java.version>
 
     <!-- ============================================================= -->
     <!-- TEST DEPENDENCY VERSIONS                                      -->
@@ -75,6 +76,15 @@
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-csv</artifactId>
         <version>${commons-csv.version}</version>
+      </dependency>
+
+      <!-- ============================================================= -->
+      <!-- CONFIGURATION                                                 -->
+      <!-- ============================================================= -->
+      <dependency>
+        <groupId>io.github.cdimascio</groupId>
+        <artifactId>dotenv-java</artifactId>
+        <version>${dotenv-java.version}</version>
       </dependency>
 
       <!-- ============================================================= -->
@@ -164,6 +174,24 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
           <version>${maven-shade-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>3.2.5</version>
+          <configuration>
+            <systemPropertyVariables>
+              <project.basedir>${maven.multiModuleProjectDirectory}</project.basedir>
+            </systemPropertyVariables>
+          </configuration>
+          <executions>
+            <execution>
+              <goals>
+                <goal>integration-test</goal>
+                <goal>verify</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
