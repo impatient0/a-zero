@@ -1,16 +1,21 @@
 package io.github.impatient0.azero.sentimentprovider.gemini;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.genai.Client;
+import com.google.genai.errors.GenAiIOException;
 import com.google.genai.types.GenerateContentConfig;
 import com.google.genai.types.GenerateContentResponse;
+import com.google.genai.types.HttpOptions;
+import com.google.genai.types.HttpRetryOptions;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Type;
 import io.github.impatient0.azero.sentimentprovider.SentimentProvider;
 import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
 import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
+import java.net.HttpURLConnection;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
@@ -75,7 +80,14 @@ public class GeminiSentimentProvider implements SentimentProvider {
             throw new IllegalArgumentException("Model name cannot be null or blank.");
         }
 
-        this.geminiClient = Client.builder().apiKey(apiKey).build();
+        HttpOptions httpOptions = HttpOptions.builder()
+            .retryOptions(
+                HttpRetryOptions.builder()
+                    .attempts(3)
+                    .build())
+            .build();
+
+        this.geminiClient = Client.builder().apiKey(apiKey).httpOptions(httpOptions).build();
         this.modelName = modelName;
         this.objectMapper = new ObjectMapper();
     }
@@ -96,9 +108,9 @@ public class GeminiSentimentProvider implements SentimentProvider {
             return List.of();
         }
 
-        try {
-            String prompt = PROMPT_TEMPLATE.replace("{inputText}", text);
+        String prompt = PROMPT_TEMPLATE.replace("{inputText}", text);
 
+        try {
             log.debug("Sending request to Gemini model '{}'...", modelName);
             GenerateContentResponse response = geminiClient.models
                 .generateContent(this.modelName, prompt, JSON_CONFIG);
@@ -107,10 +119,15 @@ public class GeminiSentimentProvider implements SentimentProvider {
             log.debug("Received raw JSON response from Gemini: {}", jsonResponse);
 
             return objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+        } catch (GenAiIOException e) {
+            log.error("A network or API error occurred while contacting the Gemini API.", e);
+            throw new SentimentProviderException("Failed to get sentiment due to API/network error.", e);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to parse a malformed JSON response from the Gemini API.", e);
+            throw new SentimentProviderException("Failed to parse Gemini API response.", e);
         } catch (Exception e) {
-            // TODO: Implement error handling
-            log.error("Failed to analyze sentiment using Gemini API for text: '{}'", text, e);
-            throw new SentimentProviderException("Failed to get sentiment from Gemini API.", e);
+            log.error("An unexpected error occurred during sentiment analysis for text: '{}'", text, e);
+            throw new SentimentProviderException("An unexpected error occurred.", e);
         }
     }
 }
