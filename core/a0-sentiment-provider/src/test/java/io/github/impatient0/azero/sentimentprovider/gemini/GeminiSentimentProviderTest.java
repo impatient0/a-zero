@@ -10,6 +10,8 @@ import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
 import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
 import java.lang.reflect.Field;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.platform.commons.util.ReflectionUtils;
 import org.junit.platform.commons.util.ReflectionUtils.HierarchyTraversalMode;
@@ -24,12 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
-/**
- * Unit tests for {@link GeminiSentimentProvider}.
- * <p>
- * These tests use Mockito to mock the Gemini client, ensuring that no real
- * network calls are made.
- */
+@DisplayName("Gemini Sentiment Provider Unit Tests")
 class GeminiSentimentProviderTest {
 
     private Client mockGeminiClient;
@@ -41,17 +38,18 @@ class GeminiSentimentProviderTest {
 
     @BeforeEach
     void setUp() throws IllegalAccessException {
+        // Mock the Gemini client and its internal structure for test isolation
         mockGeminiClient = mock(Client.class);
         Client.Async mockAsync = mock(Client.Async.class);
         mockGenerativeModel = mock(AsyncModels.class);
 
+        // Use reflection to set the private fields of the mocked objects.
+        // This is necessary because the Gemini SDK uses chained field references (client.async.models...)
+        // and we need to mock the deepest dependency (AsyncModels) which is a field of an internal class.
         Field asyncField = ReflectionUtils.findFields(Client.class, f -> f.getName().equals("async"),
             HierarchyTraversalMode.TOP_DOWN).getFirst();
 
         Field modelsField = ReflectionUtils.findFields(Client.Async.class, f -> f.getName().equals("models"),
-            HierarchyTraversalMode.TOP_DOWN).getFirst();
-
-        Field clientField = ReflectionUtils.findFields(GeminiSentimentProvider.class, f -> f.getName().equals("geminiClient"),
             HierarchyTraversalMode.TOP_DOWN).getFirst();
 
         modelsField.setAccessible(true);
@@ -60,6 +58,7 @@ class GeminiSentimentProviderTest {
         asyncField.setAccessible(true);
         asyncField.set(mockGeminiClient, mockAsync);
 
+        // Instantiate the provider, overriding createClient to return the mock
         provider = new GeminiSentimentProvider(FAKE_API_KEY, FAKE_MODEL_NAME) {
             @Override
             protected Client createClient(String apiKey) {
@@ -82,127 +81,150 @@ class GeminiSentimentProviderTest {
         when(mockGenerativeModel.generateContent(anyString(), anyString(), any(GenerateContentConfig.class))).thenReturn(future);
     }
 
-    @Test
-    void analyzeAsync_whenApiReturnsValidJson_shouldCompleteSuccessfully() {
-        // Arrange
-        String validJson = """
+    @Nested
+    @DisplayName("GIVEN an attempt to instantiate GeminiSentimentProvider")
+    class ConstructorTests {
+
+        @Test
+        @DisplayName("WHEN API key is NULL, THEN it should throw IllegalArgumentException.")
+        void constructor_withNullApiKey_shouldThrowException() {
+            assertThrows(IllegalArgumentException.class, () -> new GeminiSentimentProvider(null, FAKE_MODEL_NAME));
+        }
+
+        @Test
+        @DisplayName("WHEN API key is BLANK, THEN it should throw IllegalArgumentException.")
+        void constructor_withBlankApiKey_shouldThrowException() {
+            assertThrows(IllegalArgumentException.class, () -> new GeminiSentimentProvider(" ", FAKE_MODEL_NAME));
+        }
+
+        @Test
+        @DisplayName("WHEN model name is NULL, THEN it should throw IllegalArgumentException.")
+        void constructor_withNullModelName_shouldThrowException() {
+            assertThrows(IllegalArgumentException.class, () -> new GeminiSentimentProvider(FAKE_API_KEY, null));
+        }
+
+        @Test
+        @DisplayName("WHEN model name is BLANK, THEN it should throw IllegalArgumentException.")
+        void constructor_withBlankModelName_shouldThrowException() {
+            assertThrows(IllegalArgumentException.class, () -> new GeminiSentimentProvider(FAKE_API_KEY, ""));
+        }
+    }
+
+    @Nested
+    @DisplayName("GIVEN a call to analyzeAsync with non-text input")
+    class AnalyzeAsyncInputValidationTests {
+        @Test
+        @DisplayName("WHEN input text is NULL, THEN it should immediately return an empty list without calling the API.")
+        void analyzeAsync_whenInputTextIsNull_shouldReturnEmptyList() {
+            // --- ACT ---
+            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync(null);
+
+            // --- ASSERT ---
+            assertTrue(future.isDone());
+            assertFalse(future.isCompletedExceptionally());
+            assertTrue(future.join().isEmpty());
+            // Verify no interaction with the client
+            verify(mockGenerativeModel, never()).generateContent(anyString(), anyString(), any(GenerateContentConfig.class));
+        }
+
+        @Test
+        @DisplayName("WHEN input text is BLANK, THEN it should immediately return an empty list without calling the API.")
+        void analyzeAsync_whenInputTextIsBlank_shouldReturnEmptyList() {
+            // --- ACT ---
+            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("   ");
+
+            // --- ASSERT ---
+            assertTrue(future.isDone());
+            assertFalse(future.isCompletedExceptionally());
+            assertTrue(future.join().isEmpty());
+            // Verify no interaction with the client
+            verify(mockGenerativeModel, never()).generateContent(anyString(), anyString(), any(GenerateContentConfig.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("GIVEN a successful setup for analyzeAsync")
+    class AnalyzeAsyncApiInteractionTests {
+
+        @Test
+        @DisplayName("WHEN the Gemini API returns valid JSON, THEN it should complete successfully with the correct SentimentSignal list.")
+        void analyzeAsync_whenApiReturnsValidJson_shouldCompleteSuccessfully() {
+            // --- ARRANGE ---
+            String validJson = """
             [
               {"symbol": "BTCUSDT", "sentiment": "BULLISH", "confidence": 0.95},
               {"symbol": "ETHUSDT", "sentiment": "NEUTRAL", "confidence": 0.6}
             ]
             """;
-        mockSuccessfulResponse(validJson);
+            mockSuccessfulResponse(validJson);
 
-        // Act
-        CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("Some positive news about Bitcoin.");
-        List<SentimentSignal> result = future.join(); // Block for test assertion
+            // --- ACT ---
+            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("Some positive news about Bitcoin.");
+            List<SentimentSignal> result = future.join(); // Block for test assertion
 
-        // Assert
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals("BTCUSDT", result.get(0).symbol());
-        assertEquals(Sentiment.BULLISH, result.get(0).sentiment());
-        assertEquals(0.95, result.get(0).confidence());
-        assertEquals("ETHUSDT", result.get(1).symbol());
-        assertEquals(Sentiment.NEUTRAL, result.get(1).sentiment());
-        assertEquals(0.6, result.get(1).confidence());
-    }
+            // --- ASSERT ---
+            assertNotNull(result);
+            assertEquals(2, result.size());
+            assertEquals("BTCUSDT", result.get(0).symbol());
+            assertEquals(Sentiment.BULLISH, result.get(0).sentiment());
+            assertEquals(0.95, result.get(0).confidence());
+            assertEquals("ETHUSDT", result.get(1).symbol());
+            assertEquals(Sentiment.NEUTRAL, result.get(1).sentiment());
+            assertEquals(0.6, result.get(1).confidence());
+        }
 
-    @Test
-    void analyzeAsync_whenApiReturnsMalformedJson_shouldCompleteExceptionally() {
-        // Arrange
-        String malformedJson = "[{\"symbol\":\"BTCUSDT\",]"; // Missing closing braces
-        mockSuccessfulResponse(malformedJson);
+        @Test
+        @DisplayName("WHEN the Gemini API returns malformed JSON, THEN it should complete exceptionally with a SentimentProviderException.")
+        void analyzeAsync_whenApiReturnsMalformedJson_shouldCompleteExceptionally() {
+            // --- ARRANGE ---
+            String malformedJson = "[{\"symbol\":\"BTCUSDT\",]"; // Missing closing braces
+            mockSuccessfulResponse(malformedJson);
 
-        // Act
-        CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("test");
+            // --- ACT ---
+            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("test");
 
-        // Assert
-        CompletionException ex = assertThrows(CompletionException.class, future::join);
-        assertInstanceOf(SentimentProviderException.class, ex.getCause());
-        assertTrue(ex.getMessage().contains("Failed to parse Gemini API response"));
-    }
+            // --- ASSERT ---
+            CompletionException ex = assertThrows(CompletionException.class, future::join);
+            assertInstanceOf(SentimentProviderException.class, ex.getCause());
+            assertTrue(ex.getMessage().contains("Failed to parse Gemini API response"));
+        }
 
-    @Test
-    void analyzeAsync_whenSdkThrowsException_shouldCompleteExceptionally() {
-        // Arrange
-        mockFailedResponse(new GenAiIOException("Network error"));
+        @Test
+        @DisplayName("WHEN the Gemini SDK throws a network/API exception, THEN it should complete exceptionally with a wrapped SentimentProviderException.")
+        void analyzeAsync_whenSdkThrowsException_shouldCompleteExceptionally() {
+            // --- ARRANGE ---
+            mockFailedResponse(new GenAiIOException("Network error"));
 
-        // Act
-        CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("test");
+            // --- ACT ---
+            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("test");
 
-        // Assert
-        CompletionException ex = assertThrows(CompletionException.class, future::join);
-        assertInstanceOf(SentimentProviderException.class, ex.getCause());
-        assertInstanceOf(GenAiIOException.class, ex.getCause().getCause());
-        assertTrue(ex.getMessage().contains("Failed to get sentiment due to API/network error."));
-    }
+            // --- ASSERT ---
+            CompletionException ex = assertThrows(CompletionException.class, future::join);
+            assertInstanceOf(SentimentProviderException.class, ex.getCause());
+            assertInstanceOf(GenAiIOException.class, ex.getCause().getCause());
+            assertTrue(ex.getMessage().contains("Failed to get sentiment due to API/network error."));
+        }
 
-    @Test
-    void analyzeAsync_whenInputTextIsNull_shouldReturnEmptyList() {
-        // Act
-        CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync(null);
+        @Test
+        @DisplayName("WHEN analyzeAsync is called, THEN it should construct a prompt that correctly embeds the input text.")
+        void analyzeAsync_shouldConstructCorrectPrompt() {
+            // --- ARRANGE ---
+            mockSuccessfulResponse("[]");
+            String inputText = "This is a test input.";
+            String expectedPromptSubstring = "Text: \"" + inputText + "\"";
 
-        // Assert
-        assertTrue(future.isDone());
-        assertFalse(future.isCompletedExceptionally());
-        assertTrue(future.join().isEmpty());
-        // Verify no interaction with the client
-        verify(mockGeminiClient.async.models, never()).generateContent(anyString(), anyString(), any(GenerateContentConfig.class));
-    }
+            // Use an ArgumentCaptor to capture the prompt string
+            ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
 
-    @Test
-    void analyzeAsync_whenInputTextIsBlank_shouldReturnEmptyList() {
-        // Act
-        CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("   ");
+            // --- ACT ---
+            provider.analyzeAsync(inputText).join();
 
-        // Assert
-        assertTrue(future.isDone());
-        assertFalse(future.isCompletedExceptionally());
-        assertTrue(future.join().isEmpty());
-        verify(mockGeminiClient.async.models, never()).generateContent(anyString(), anyString(), any(GenerateContentConfig.class));
-    }
+            // --- ASSERT ---
+            // Verify that generateContent was called and capture the argument
+            verify(mockGenerativeModel).generateContent(anyString(), promptCaptor.capture(), any(GenerateContentConfig.class));
+            String actualPrompt = promptCaptor.getValue();
 
-    @Test
-    void constructor_withNullApiKey_shouldThrowException() {
-        assertThrows(IllegalArgumentException.class, () -> new GeminiSentimentProvider(null, FAKE_MODEL_NAME));
-    }
-
-    @Test
-    void constructor_withBlankApiKey_shouldThrowException() {
-        assertThrows(IllegalArgumentException.class, () -> new GeminiSentimentProvider(" ", FAKE_MODEL_NAME));
-    }
-
-    @Test
-    void constructor_withNullModelName_shouldThrowException() {
-        assertThrows(IllegalArgumentException.class, () -> new GeminiSentimentProvider(FAKE_API_KEY, null));
-    }
-
-    @Test
-    void constructor_withBlankModelName_shouldThrowException() {
-        assertThrows(IllegalArgumentException.class, () -> new GeminiSentimentProvider(FAKE_API_KEY, ""));
-    }
-
-    @Test
-    void analyzeAsync_shouldConstructCorrectPrompt() {
-        // Arrange
-        mockSuccessfulResponse("[]");
-        String inputText = "This is a test input.";
-        String expectedPromptSubstring = "Text: \"" + inputText + "\"";
-
-        // Use an ArgumentCaptor to capture the prompt string
-        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
-
-        // Act
-        provider.analyzeAsync(inputText).join();
-
-        // Assert
-        // Verify that generateContent was called and capture the argument
-        verify(mockGenerativeModel).generateContent(promptCaptor.capture(), anyString(), any(GenerateContentConfig.class));
-        String actualPrompt = promptCaptor.getValue();
-
-        System.err.println("actual prompt: " + actualPrompt);
-
-        assertTrue(actualPrompt.contains(expectedPromptSubstring), "The prompt did not contain the correct input text.");
+            assertTrue(actualPrompt.contains(expectedPromptSubstring), "The prompt did not contain the correct input text.");
+        }
     }
 }
