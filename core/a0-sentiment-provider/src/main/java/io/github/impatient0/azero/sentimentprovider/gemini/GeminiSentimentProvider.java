@@ -1,5 +1,6 @@
 package io.github.impatient0.azero.sentimentprovider.gemini;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
@@ -121,14 +122,19 @@ public class GeminiSentimentProvider implements SentimentProvider {
         log.debug("Sending async request to Gemini model '{}'...", modelName);
         return geminiClient.async.models
             .generateContent(this.modelName, prompt, JSON_CONFIG)
-            .thenApply(response -> {
+            .handle((response, throwable) -> {
+                if (throwable != null) {
+                    log.error("A network or API error occurred while contacting the Gemini API.", throwable);
+                    throw new SentimentProviderException("Failed to get sentiment due to API/network error.", throwable);
+                }
+
                 String jsonResponse = response.text();
                 log.debug("Received async raw JSON response from Gemini: {}", jsonResponse);
                 try {
                     return objectMapper.readValue(jsonResponse, new TypeReference<>() {});
-                } catch (Exception e) {
-                    log.error("Asynchronous sentiment analysis failed for text: '{}'", text, e);
-                    throw new SentimentProviderException("Failed to get sentiment from Gemini API.", e);
+                } catch (JsonProcessingException e) {
+                    log.error("Failed to parse a malformed JSON response from the Gemini API.", e);
+                    throw new SentimentProviderException("Failed to parse Gemini API response.", e);
                 }
             });
     }
