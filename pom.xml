@@ -22,6 +22,16 @@
     <module>services</module>
   </modules>
 
+  <build>
+    <plugins>
+      <!-- This activates the plugin for all modules in the reactor build -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>flatten-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
   <scm>
     <connection>scm:git:git@github.com:impatient0/a-zero.git</connection>
     <developerConnection>scm:git:git@github.com:impatient0/a-zero.git</developerConnection>

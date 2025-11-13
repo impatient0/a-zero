@@ -32,6 +32,7 @@
     <maven-shade-plugin.version>3.6.1</maven-shade-plugin.version>
     <ta4j.version>0.18</ta4j.version>
     <google.genai.version>1.27.0</google.genai.version>
+    <flatten-maven-plugin.version>1.7.3</flatten-maven-plugin.version>
 
     <!-- ============================================================= -->
     <!-- TEST DEPENDENCY VERSIONS                                      -->
@@ -163,6 +164,31 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
           <version>${maven-shade-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>flatten-maven-plugin</artifactId>
+          <version>${flatten-maven-plugin.version}</version>
+          <configuration>
+            <updatePomFile>true</updatePomFile>
+            <flattenMode>resolveCiFriendliesOnly</flattenMode>
+          </configuration>
+          <executions>
+            <execution>
+              <id>flatten</id>
+              <phase>process-resources</phase>
+              <goals>
+                <goal>flatten</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>flatten.clean</id>
+              <phase>clean</phase>
+              <goals>
+                <goal>clean</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
       </plugins>
     </pluginManagement>

@@ -37,5 +37,9 @@ build/
 ### Shade ###
 **/dependency-reduced-pom.xml
 
-# Secrets file
+### Flatten ###
+
+**/.flattened-pom.xml
+
+### Secrets file ###
 .env
