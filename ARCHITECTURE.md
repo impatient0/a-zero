@@ -22,10 +22,13 @@ This project follows an "Open Core" model, separating the reusable framework fro
     3.  `a0-backtester`: A library containing the core backtesting engine for simulating `Strategy` instances. This module has no knowledge of how strategies are defined (e.g., via YAML or code).
     4.  `a0-strategy-rules-engine`: A library that can parse declarative strategy definitions (from YAML files) and construct an executable `Strategy` object. This module contains all technical analysis library dependencies.
     5.  `a0-backtester-cli`: A command-line tool that consumes all the above libraries to provide a user-facing backtesting application.
+    6.  `a0-sentiment-provider`: A library that provides a standardized interface for querying sentiment analysis services.
+    7.  `a0-news-feed-client`: A library that provides clients for reading raw news data from various sources.
 - **Data Flow:**
-    - The `data-ingestor` produces CSV data files.
+    - The `data-ingestor` produces market data CSVs.
+    - The (future) `a0-sentiment-preprocessor-cli` consumes raw news data, generates signals via the `a0-sentiment-provider`, and produces corresponding sentiment data files.
     - The `strategy-rules-engine` consumes a strategy YAML file and produces a `Strategy` object.
-    - The `backtester-cli` consumes the CSV files, uses the `strategy-rules-engine` to load a strategy, and then passes the data and the `Strategy` object to the `a0-backtester` library to run the simulation.
+    - The `backtester-cli` consumes both market and sentiment data files, uses the `strategy-rules-engine` to load a strategy, and passes all components to the `a0-backtester` library to run a simulation.
 
 ## 3. Module Specifications
 
@@ -60,7 +63,7 @@ This project follows an "Open Core" model, separating the reusable framework fro
 - **Documentation:** See Strategy Rules Engine's [README.md](backtesting/a0-strategy-rules-engine/README.md)
 - **Responsibility:** To parse declarative, rule-based strategy definitions (from YAML files) and construct an executable `Strategy` object. It encapsulates all logic related to technical indicators and their calculation.
 - **Inputs:** A path to a configuration file (e.g., `strategy.yaml`) and the target symbol.
-- **Outputs:** An instantiated Java object that implements the `io.github.impatient0.azero.core.strategy.Strategy` interface.
+- **Outputs:** An instantiated Java object that implements the `Strategy` interface.
 
 ### 3.5 Module: `a0-backtester-cli` (Application)
 - **Status:** Implemented in v0.2
@@ -73,7 +76,7 @@ This project follows an "Open Core" model, separating the reusable framework fro
 - **Status:** Implemented in v0.3
 - **Responsibility:** To provide a standardized interface (`SentimentProvider`) for querying sentiment analysis services (e.g., external LLMs) and the data models (`SentimentSignal`) for representing their output.
 - **Inputs:** A string of text.
-- **Outputs:** A list of `SentimentSignal` objects, each containing a symbol, sentiment, and confidence score.
+- **Outputs:** A `CompletableFuture<List<SentimentSignal>>` object, where each `SentimentSignal` contains a symbol, sentiment, and confidence score.
 
 ### 3.7 Module: `a0-news-feed-client` (Library)
 - **Status:** Implemented in v0.3
