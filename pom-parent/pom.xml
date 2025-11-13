@@ -31,6 +31,7 @@
     <lombok.version>1.18.42</lombok.version>
     <maven-shade-plugin.version>3.6.1</maven-shade-plugin.version>
     <ta4j.version>0.18</ta4j.version>
+    <google.genai.version>1.27.0</google.genai.version>
 
     <!-- ============================================================= -->
     <!-- TEST DEPENDENCY VERSIONS                                      -->
@@ -73,6 +74,15 @@
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-csv</artifactId>
         <version>${commons-csv.version}</version>
+      </dependency>
+
+      <!-- ============================================================= -->
+      <!-- AI / ML SERVICES                                              -->
+      <!-- ============================================================= -->
+      <dependency>
+        <groupId>com.google.genai</groupId>
+        <artifactId>google-genai</artifactId>
+        <version>${google.genai.version}</version>
       </dependency>
 
       <!-- ============================================================= -->
