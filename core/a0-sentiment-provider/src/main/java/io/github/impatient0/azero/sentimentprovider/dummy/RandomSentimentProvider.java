@@ -3,6 +3,7 @@ package io.github.impatient0.azero.sentimentprovider.dummy;
 import io.github.impatient0.azero.sentimentprovider.Sentiment;
 import io.github.impatient0.azero.sentimentprovider.SentimentProvider;
 import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
+import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
 
 import java.util.List;
 import java.util.Random;
@@ -22,11 +23,18 @@ public class RandomSentimentProvider implements SentimentProvider {
     private final Random random = new Random();
 
     /**
-     * Ignores the input text and returns a list containing a single, randomly
-     * generated sentiment signal.
+     * Generates a single, random sentiment signal while completely ignoring the input text.
+     * <p>
+     * This method is designed for testing and development. It randomly selects a
+     * symbol and sentiment from a predefined list and generates a random confidence value.
+     * It will always return a list containing exactly one {@link SentimentSignal}.
+     * <p>
+     * This implementation does not perform any real analysis and will never throw a
+     * {@link SentimentProviderException}.
      *
      * @param text The raw text to analyze (ignored by this implementation).
-     * @return A list with one {@link SentimentSignal} containing random data.
+     * @return A non-null {@link List} containing exactly one randomly generated
+     *         {@link SentimentSignal}.
      */
     @Override
     public List<SentimentSignal> analyze(String text) {

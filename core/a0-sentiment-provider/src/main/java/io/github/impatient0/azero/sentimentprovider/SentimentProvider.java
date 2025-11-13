@@ -1,5 +1,6 @@
 package io.github.impatient0.azero.sentimentprovider;
 
+import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
 import java.util.List;
 
 /**
@@ -23,6 +24,8 @@ public interface SentimentProvider {
      * @param text The raw text to analyze (e.g., a news headline or article body).
      * @return A {@link List} of {@link SentimentSignal} objects. The list may be
      *         empty if no relevant symbols or sentiment can be extracted from the text.
+     * @throws SentimentProviderException if an error occurs during the analysis process,
+     *         such as communication failure with the backend or an internal processing error.
      */
-    List<SentimentSignal> analyze(String text);
+    List<SentimentSignal> analyze(String text) throws SentimentProviderException;
 }
