@@ -117,7 +117,7 @@ class GeminiSentimentProviderTest {
         @DisplayName("WHEN input text is NULL, THEN it should immediately return an empty list without calling the API.")
         void analyzeAsync_whenInputTextIsNull_shouldReturnEmptyList() {
             // --- ACT ---
-            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync(null);
+            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync(null, System.currentTimeMillis());
 
             // --- ASSERT ---
             assertTrue(future.isDone());
@@ -131,7 +131,7 @@ class GeminiSentimentProviderTest {
         @DisplayName("WHEN input text is BLANK, THEN it should immediately return an empty list without calling the API.")
         void analyzeAsync_whenInputTextIsBlank_shouldReturnEmptyList() {
             // --- ACT ---
-            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("   ");
+            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("   ", System.currentTimeMillis());
 
             // --- ASSERT ---
             assertTrue(future.isDone());
@@ -150,6 +150,7 @@ class GeminiSentimentProviderTest {
         @DisplayName("WHEN the Gemini API returns valid JSON, THEN it should complete successfully with the correct SentimentSignal list.")
         void analyzeAsync_whenApiReturnsValidJson_shouldCompleteSuccessfully() {
             // --- ARRANGE ---
+            long expectedTimesatmp = System.currentTimeMillis();
             String validJson = """
             [
               {"symbol": "BTCUSDT", "sentiment": "BULLISH", "confidence": 0.95},
@@ -159,7 +160,7 @@ class GeminiSentimentProviderTest {
             mockSuccessfulResponse(validJson);
 
             // --- ACT ---
-            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("Some positive news about Bitcoin.");
+            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("Some positive news about Bitcoin.", expectedTimesatmp);
             List<SentimentSignal> result = future.join(); // Block for test assertion
 
             // --- ASSERT ---
@@ -168,9 +169,11 @@ class GeminiSentimentProviderTest {
             assertEquals("BTCUSDT", result.get(0).symbol());
             assertEquals(Sentiment.BULLISH, result.get(0).sentiment());
             assertEquals(0.95, result.get(0).confidence());
+            assertEquals(expectedTimesatmp, result.get(0).timestamp());
             assertEquals("ETHUSDT", result.get(1).symbol());
             assertEquals(Sentiment.NEUTRAL, result.get(1).sentiment());
             assertEquals(0.6, result.get(1).confidence());
+            assertEquals(expectedTimesatmp, result.get(1).timestamp());
         }
 
         @Test
@@ -181,7 +184,7 @@ class GeminiSentimentProviderTest {
             mockSuccessfulResponse(malformedJson);
 
             // --- ACT ---
-            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("test");
+            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("test", System.currentTimeMillis());
 
             // --- ASSERT ---
             CompletionException ex = assertThrows(CompletionException.class, future::join);
@@ -196,7 +199,7 @@ class GeminiSentimentProviderTest {
             mockFailedResponse(new GenAiIOException("Network error"));
 
             // --- ACT ---
-            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("test");
+            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("test", System.currentTimeMillis());
 
             // --- ASSERT ---
             CompletionException ex = assertThrows(CompletionException.class, future::join);
@@ -217,7 +220,7 @@ class GeminiSentimentProviderTest {
             ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
 
             // --- ACT ---
-            provider.analyzeAsync(inputText).join();
+            provider.analyzeAsync(inputText, System.currentTimeMillis()).join();
 
             // --- ASSERT ---
             // Verify that generateContent was called and capture the argument

@@ -56,19 +56,21 @@ class GeminiSentimentProviderIT {
         void analyzeAsync_withBullishText_shouldReturnBullishSentiment() throws Exception {
             // --- ARRANGE ---
             String bullishText = "Bitcoin price skyrockets to a new all-time high, showing strong upward momentum and investor confidence.";
+            long timestamp = System.currentTimeMillis();
 
             // --- ACT ---
-            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync(bullishText);
+            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync(bullishText, timestamp);
             List<SentimentSignal> result = future.get(30, TimeUnit.SECONDS); // Block with timeout for assertion
 
             // --- ASSERT ---
             assertNotNull(result);
             assertFalse(result.isEmpty(), "The result list should not be empty for a bullish text.");
 
-            boolean btcSignalFound = result.stream()
-                .anyMatch(signal -> signal.symbol().contains("BTC") && signal.sentiment() == Sentiment.BULLISH);
+            boolean btcSignalFound = result.stream().anyMatch(
+                signal -> signal.symbol().contains("BTC") && signal.sentiment() == Sentiment.BULLISH
+                    && signal.timestamp() == timestamp);
 
-            assertTrue(btcSignalFound, "A bullish sentiment signal for BTC was not found in the response.");
+            assertTrue(btcSignalFound, "A bullish sentiment signal for BTC with a correct timestamp was not found in the response.");
         }
 
         @Test
@@ -78,7 +80,7 @@ class GeminiSentimentProviderIT {
             String neutralText = "The weather is sunny today in the city.";
 
             // --- ACT ---
-            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync(neutralText);
+            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync(neutralText, System.currentTimeMillis());
             List<SentimentSignal> result = future.get(30, TimeUnit.SECONDS);
 
             // --- ASSERT ---
@@ -99,7 +101,7 @@ class GeminiSentimentProviderIT {
             GeminiSentimentProvider provider = new GeminiSentimentProvider(invalidApiKey, MODEL_NAME);
 
             // --- ACT ---
-            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("This will fail.");
+            CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("This will fail.", System.currentTimeMillis());
 
             // --- ASSERT ---
             CompletableFuture<List<SentimentSignal>> timedFuture = future.orTimeout(30, TimeUnit.SECONDS);

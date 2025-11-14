@@ -39,12 +39,12 @@ public class RandomSentimentProvider implements SentimentProvider {
      *         {@link List} containing exactly one randomly generated {@link SentimentSignal}.
      */
     @Override
-    public CompletableFuture<List<SentimentSignal>> analyzeAsync(String text) {
+    public CompletableFuture<List<SentimentSignal>> analyzeAsync(String text, long timestamp) {
         String randomSymbol = SYMBOLS.get(random.nextInt(SYMBOLS.size()));
         Sentiment randomSentiment = SENTIMENTS[random.nextInt(SENTIMENTS.length)];
         double randomConfidence = random.nextDouble();
 
-        SentimentSignal signal = new SentimentSignal(randomSymbol, randomSentiment, randomConfidence);
+        SentimentSignal signal = new SentimentSignal(timestamp, randomSymbol, randomSentiment, randomConfidence);
 
         return CompletableFuture.completedFuture(List.of(signal));
     }

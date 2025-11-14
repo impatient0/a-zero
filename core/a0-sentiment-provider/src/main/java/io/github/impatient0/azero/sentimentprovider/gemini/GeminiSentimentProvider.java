@@ -10,11 +10,13 @@ import com.google.genai.types.HttpOptions;
 import com.google.genai.types.HttpRetryOptions;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Type;
+import io.github.impatient0.azero.sentimentprovider.Sentiment;
 import io.github.impatient0.azero.sentimentprovider.SentimentProvider;
 import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
 import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -23,6 +25,8 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class GeminiSentimentProvider implements SentimentProvider {
+
+    private record GeminiSignal(String symbol, Sentiment sentiment, double confidence) {}
 
     private final Client geminiClient;
     private final String modelName;
@@ -112,7 +116,7 @@ public class GeminiSentimentProvider implements SentimentProvider {
      *         exceptionally completed value of the returned future).
      */
     @Override
-    public CompletableFuture<List<SentimentSignal>> analyzeAsync(String text) {
+    public CompletableFuture<List<SentimentSignal>> analyzeAsync(String text, long timestamp) {
         if (text == null || text.isBlank()) {
             return CompletableFuture.completedFuture(List.of());
         }
@@ -131,7 +135,11 @@ public class GeminiSentimentProvider implements SentimentProvider {
                 String jsonResponse = response.text();
                 log.debug("Received async raw JSON response from Gemini: {}", jsonResponse);
                 try {
-                    return objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+                    List<GeminiSignal> geminiSignals = objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+
+                    return geminiSignals.stream()
+                        .map(gs -> new SentimentSignal(timestamp, gs.symbol(), gs.sentiment(), gs.confidence()))
+                        .toList();
                 } catch (JsonProcessingException e) {
                     log.error("Failed to parse a malformed JSON response from the Gemini API.", e);
                     throw new SentimentProviderException("Failed to parse Gemini API response.", e);

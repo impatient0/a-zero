@@ -11,13 +11,14 @@ import java.util.concurrent.CompletableFuture;
 public interface SentimentProvider {
 
     /**
-     * Asynchronously analyzes the given text and extracts a list of sentiment signals for any
-     * financial symbols identified within it.
+     * Asynchronously analyzes the given text and extracts a list of sentiment signals.
      *
-     * @param text The raw text to analyze (e.g., a news headline or article body).
+     * @param text      The raw text to analyze (e.g., a news headline or article body).
+     * @param timestamp The timestamp from the original source data, to be associated
+     *                  with the resulting signals.
      * @return A {@link CompletableFuture} which will complete with a {@link List} of
      *         {@link SentimentSignal} objects. The future will complete exceptionally
      *         with a {@link SentimentProviderException} if the analysis fails.
      */
-    CompletableFuture<List<SentimentSignal>> analyzeAsync(String text);
+    CompletableFuture<List<SentimentSignal>> analyzeAsync(String text, long timestamp);
 }
