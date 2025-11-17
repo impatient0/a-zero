@@ -17,6 +17,7 @@
 
   <modules>
     <module>a0-data-ingestor</module>
+    <module>a0-sentiment-preprocessor-cli</module>
   </modules>
 
 </project>
