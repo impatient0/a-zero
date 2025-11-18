@@ -5,10 +5,12 @@ import com.google.genai.Client;
 import com.google.genai.errors.GenAiIOException;
 import com.google.genai.types.GenerateContentConfig;
 import com.google.genai.types.GenerateContentResponse;
+import io.github.impatient0.azero.sentimentprovider.ProviderConfig;
 import io.github.impatient0.azero.sentimentprovider.Sentiment;
 import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
 import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
 import java.lang.reflect.Field;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -59,12 +61,18 @@ class GeminiSentimentProviderTest {
         asyncField.set(mockGeminiClient, mockAsync);
 
         // Instantiate the provider, overriding createClient to return the mock
-        provider = new GeminiSentimentProvider(FAKE_API_KEY, FAKE_MODEL_NAME) {
+        provider = new GeminiSentimentProvider() {
             @Override
             protected Client createClient(String apiKey) {
                 return mockGeminiClient;
             }
         };
+
+        // Create a real ProviderConfig and initialize the provider with it.
+        // The API key can be a fake string since the client is mocked.
+        Map<String, String> settings = Map.of("apiKey", "test-api-key");
+        ProviderConfig testConfig = new ProviderConfig(settings);
+        provider.init(testConfig);
     }
 
     // Helper method to simulate a successful API response
@@ -82,31 +90,31 @@ class GeminiSentimentProviderTest {
     }
 
     @Nested
-    @DisplayName("GIVEN an attempt to instantiate GeminiSentimentProvider")
-    class ConstructorTests {
+    @DisplayName("GIVEN an attempt to initialize the provider")
+    class InitializationTests {
 
         @Test
-        @DisplayName("WHEN API key is NULL, THEN it should throw IllegalArgumentException.")
-        void constructor_withNullApiKey_shouldThrowException() {
-            assertThrows(IllegalArgumentException.class, () -> new GeminiSentimentProvider(null, FAKE_MODEL_NAME));
+        @DisplayName("WHEN the configuration is missing the API key, THEN it should throw IllegalArgumentException")
+        void init_withMissingApiKey_shouldThrowException() {
+            // --- ARRANGE ---
+            GeminiSentimentProvider provider = new GeminiSentimentProvider();
+            // Create config without the required key
+            ProviderConfig invalidConfig = new ProviderConfig(Map.of("someOtherKey", "value"));
+
+            // --- ACT & ASSERT ---
+            assertThrows(IllegalArgumentException.class, () -> provider.init(invalidConfig));
         }
 
         @Test
-        @DisplayName("WHEN API key is BLANK, THEN it should throw IllegalArgumentException.")
-        void constructor_withBlankApiKey_shouldThrowException() {
-            assertThrows(IllegalArgumentException.class, () -> new GeminiSentimentProvider(" ", FAKE_MODEL_NAME));
-        }
+        @DisplayName("WHEN the API key is blank, THEN it should throw IllegalArgumentException")
+        void init_withBlankApiKey_shouldThrowException() {
+            // --- ARRANGE ---
+            GeminiSentimentProvider provider = new GeminiSentimentProvider();
+            // Create config with a blank key
+            ProviderConfig invalidConfig = new ProviderConfig(Map.of("apiKey", "   "));
 
-        @Test
-        @DisplayName("WHEN model name is NULL, THEN it should throw IllegalArgumentException.")
-        void constructor_withNullModelName_shouldThrowException() {
-            assertThrows(IllegalArgumentException.class, () -> new GeminiSentimentProvider(FAKE_API_KEY, null));
-        }
-
-        @Test
-        @DisplayName("WHEN model name is BLANK, THEN it should throw IllegalArgumentException.")
-        void constructor_withBlankModelName_shouldThrowException() {
-            assertThrows(IllegalArgumentException.class, () -> new GeminiSentimentProvider(FAKE_API_KEY, ""));
+            // --- ACT & ASSERT ---
+            assertThrows(IllegalArgumentException.class, () -> provider.init(invalidConfig));
         }
     }
 

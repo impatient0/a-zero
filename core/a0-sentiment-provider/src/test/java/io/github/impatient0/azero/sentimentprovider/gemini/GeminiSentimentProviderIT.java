@@ -1,9 +1,11 @@
 package io.github.impatient0.azero.sentimentprovider.gemini;
 
 import io.github.cdimascio.dotenv.Dotenv;
+import io.github.impatient0.azero.sentimentprovider.ProviderConfig;
 import io.github.impatient0.azero.sentimentprovider.Sentiment;
 import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
 import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
+import java.util.Map;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +50,12 @@ class GeminiSentimentProviderIT {
             apiKey = dotenv.get("GEMINI_API_KEY");
             Assumptions.assumeTrue(apiKey != null && !apiKey.isBlank(),
                 "GEMINI_API_KEY environment variable not set. Skipping integration test.");
-            provider = new GeminiSentimentProvider(apiKey, MODEL_NAME);
+            provider = new GeminiSentimentProvider();
+
+            Map<String, String> settings = Map.of("apiKey", apiKey);
+            ProviderConfig realConfig = new ProviderConfig(settings);
+
+            provider.init(realConfig);
         }
 
         @Test
@@ -97,8 +104,12 @@ class GeminiSentimentProviderIT {
         @DisplayName("WHEN analyzing text, THEN it should fail with an authentication error")
         void analyzeAsync_withInvalidKey_shouldFailWithAuthenticationError() {
             // --- ARRANGE ---
-            String invalidApiKey = "invalid-api-key-that-will-not-work";
-            GeminiSentimentProvider provider = new GeminiSentimentProvider(invalidApiKey, MODEL_NAME);
+            GeminiSentimentProvider provider = new GeminiSentimentProvider();
+
+            Map<String, String> settings = Map.of("apiKey", "invalid-api-key-that-will-not-work");
+            ProviderConfig realConfig = new ProviderConfig(settings);
+
+            provider.init(realConfig);
 
             // --- ACT ---
             CompletableFuture<List<SentimentSignal>> future = provider.analyzeAsync("This will fail.", System.currentTimeMillis());
