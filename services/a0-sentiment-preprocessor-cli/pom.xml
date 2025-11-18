@@ -23,10 +23,12 @@
     <dependency>
       <groupId>io.github.impatient0.azero</groupId>
       <artifactId>a0-news-feed-client</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>io.github.impatient0.azero</groupId>
       <artifactId>a0-sentiment-provider</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <!-- ============================================================= -->
@@ -35,6 +37,14 @@
     <dependency>
       <groupId>info.picocli</groupId>
       <artifactId>picocli</artifactId>
+    </dependency>
+
+    <!-- ============================================================= -->
+    <!-- DATA SERIALIZATION AND UTILITIES                              -->
+    <!-- ============================================================= -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-csv</artifactId>
     </dependency>
 
     <!-- ============================================================= -->
