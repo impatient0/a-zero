@@ -6,7 +6,13 @@ import io.github.impatient0.azero.newsfeedclient.RawNewsArticle;
 import io.github.impatient0.azero.sentimentprovider.ProviderConfig;
 import io.github.impatient0.azero.sentimentprovider.SentimentProvider;
 import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -23,6 +29,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * The main command-line interface for the A-Zero sentiment preprocessor application.
+ * <p>
+ * This class uses picocli to parse command-line arguments and orchestrates the
+ * loading of raw news data, sentiment analysis using a pluggable provider, and
+ * concurrent processing to generate a cleaned CSV of sentiment signals.
+ */
 @Slf4j
 @Command(
     name = "a0-sentiment-preprocessor-cli",
@@ -44,7 +57,13 @@ public class SentimentPreprocessorCli implements Callable<Integer> {
     @Option(names = {"-c", "--max-concurrency"}, description = "The maximum number of concurrent API requests to make.", defaultValue = "4")
     private int maxConcurrency;
 
-    // Internal record to capture the result of a single article's processing
+    /**
+     * Internal record to capture the result of a single article's processing.
+     *
+     * @param article The original raw news article.
+     * @param signals The list of sentiment signals generated from the article (empty if failed).
+     * @param exception The exception that occurred during processing, or null if successful.
+     */
     private record ProcessingResult(
         RawNewsArticle article,
         List<SentimentSignal> signals,
@@ -53,6 +72,11 @@ public class SentimentPreprocessorCli implements Callable<Integer> {
         boolean isSuccess() { return exception == null; }
     }
 
+    /**
+     * The main application logic. This method is executed when the command is run.
+     *
+     * @return 0 on success, 1 on failure.
+     */
     @Override
     public Integer call() {
         log.info("--- A-Zero Sentiment Preprocessor Initializing ---");
@@ -61,8 +85,7 @@ public class SentimentPreprocessorCli implements Callable<Integer> {
         List<RawNewsArticle> articles;
         try {
             log.info("Loading news from: {}", rawNewsFile);
-            CsvNewsClient newsClient = new CsvNewsClient();
-            articles = newsClient.loadFromFile(rawNewsFile);
+            articles = loadArticles(rawNewsFile);
             log.info("Loaded {} articles.", articles.size());
         } catch (Exception e) {
             log.error("Failed to load input file.", e);
@@ -80,8 +103,7 @@ public class SentimentPreprocessorCli implements Callable<Integer> {
         }
 
         // 3. Setup Concurrency and Rate Limiting
-        // 15 RPM is the conservative default for Gemini Free Tier.
-        // In the future, this could be configurable via flags/config.
+        // TODO: make rate limit configurable
         SimpleRateLimiter rateLimiter = new SimpleRateLimiter(15);
         ExecutorService executor = Executors.newFixedThreadPool(maxConcurrency);
 
@@ -94,8 +116,6 @@ public class SentimentPreprocessorCli implements Callable<Integer> {
         for (RawNewsArticle article : articles) {
             CompletableFuture<ProcessingResult> future = CompletableFuture
                 .supplyAsync(() -> {
-                    // Blocking acquire inside the async task ensures we throttle
-                    // the *start* of the API call, not the submission of the task.
                     rateLimiter.acquire();
                     return article;
                 }, executor)
@@ -106,12 +126,11 @@ public class SentimentPreprocessorCli implements Callable<Integer> {
         }
 
         // 5. Wait for Completion (Resiliently)
-        // We join on allOf, ignoring exceptions (because we handle them inside the individual futures)
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
         // 6. Aggregate Results
         List<ProcessingResult> results = futures.stream()
-            .map(CompletableFuture::join) // Safe to join now as they are all done
+            .map(CompletableFuture::join)
             .toList();
 
         List<ProcessingResult> successes = results.stream().filter(ProcessingResult::isSuccess).toList();
@@ -128,13 +147,81 @@ public class SentimentPreprocessorCli implements Callable<Integer> {
 
         executor.shutdown();
 
-        // STEP 5 (Next): Write 'successes' to CSV
-        // writeOutput(successes);
+        // 7: Write 'successes' to CSV
+        if (!successes.isEmpty()) {
+            try {
+                writeOutput(successes);
+            } catch (IOException e) {
+                log.error("Failed to write output CSV.", e);
+                return 1;
+            }
+        } else {
+            log.warn("No successful results to write.");
+        }
 
-        return failures.isEmpty() ? 0 : 1; // Return 1 if there were partial failures, or 0 if perfect.
+        executor.shutdown();
+        return failures.isEmpty() ? 0 : 1;
     }
 
-    private SentimentProvider loadProvider(String name) {
+    /**
+     * Writes the successful sentiment signals to the output CSV file.
+     * @param results The list of successful processing results.
+     * @throws IOException if an error occurs while writing to the file.
+     */
+    private void writeOutput(List<ProcessingResult> results) throws IOException {
+        log.info("Writing results to: {}", outputFile);
+
+        // Ensure parent directories exist
+        if (outputFile.getParent() != null) {
+            Files.createDirectories(outputFile.getParent());
+        }
+
+        // Define CSV Format: timestamp,symbol,sentiment,confidence
+        CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
+            .setHeader("timestamp", "symbol", "sentiment", "confidence")
+            .get();
+
+        try (BufferedWriter writer = Files.newBufferedWriter(outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            CSVPrinter csvPrinter = new CSVPrinter(writer, csvFormat)) {
+
+            int signalCount = 0;
+            for (ProcessingResult result : results) {
+                for (SentimentSignal signal : result.signals()) {
+                    csvPrinter.printRecord(
+                        signal.timestamp(),
+                        signal.symbol(),
+                        signal.sentiment(),
+                        signal.confidence()
+                    );
+                    signalCount++;
+                }
+            }
+            log.info("Wrote {} sentiment signals to CSV.", signalCount);
+        }
+    }
+
+    /**
+     * Loads raw article data from the input CSV file using a {@link CsvNewsClient}.
+     * @param path {@link Path} to the raw news file.
+     * @return A list of articles loaded from the file.
+     * @throws IOException if an error occurs while reading the file.
+     */
+    protected List<RawNewsArticle> loadArticles(Path path) throws IOException {
+        CsvNewsClient newsClient = new CsvNewsClient();
+        return newsClient.loadFromFile(rawNewsFile);
+    }
+
+    /**
+     * Discovers and initializes the specified {@code SentimentProvider} using Java's {@code ServiceLoader}.
+     * <p>
+     * The provider is configured with an API key looked up from environment variables,
+     * following the convention: {@code PROVIDER_NAME_API_KEY} (e.g., GEMINI_API_KEY).
+     *
+     * @param name The case-insensitive name of the provider to load (e.g., "GEMINI").
+     * @return The initialized SentimentProvider instance.
+     * @throws IllegalArgumentException if no provider with the given name is found.
+     */
+    protected SentimentProvider loadProvider(String name) {
         ServiceLoader<SentimentProvider> loader = ServiceLoader.load(SentimentProvider.class);
         Optional<SentimentProvider> providerOpt = loader.stream()
             .map(ServiceLoader.Provider::get)
@@ -164,6 +251,11 @@ public class SentimentPreprocessorCli implements Callable<Integer> {
         return provider;
     }
 
+    /**
+     * The main entry point for the executable JAR.
+     *
+     * @param args Command-line arguments.
+     */
     public static void main(String[] args) {
         int exitCode = new CommandLine(new SentimentPreprocessorCli()).execute(args);
         System.exit(exitCode);
