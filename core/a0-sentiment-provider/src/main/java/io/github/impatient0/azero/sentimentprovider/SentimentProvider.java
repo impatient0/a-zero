@@ -6,9 +6,27 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Defines the contract for a service that can analyze a piece of text to extract
- * financial sentiment signals. Implementations are expected to be asynchronous.
+ * financial sentiment signals. Implementations are expected to be asynchronous
+ * and discoverable via Java's Service Provider Interface (SPI).
  */
 public interface SentimentProvider {
+
+    /**
+     * Returns the unique, simple name for this provider (e.g., "GEMINI", "RANDOM").
+     * This name is used by consumers like the CLI to select the desired provider.
+     *
+     * @return The unique name of the provider.
+     */
+    String getName();
+
+    /**
+     * Initializes the provider with the given configuration. This method will be
+     * called once by the framework before any calls to {@link #analyzeAsync(String, long)}.
+     * All expensive setup, such as creating API clients, should be done here.
+     *
+     * @param config The configuration object containing settings for this provider.
+     */
+    void init(ProviderConfig config);
 
     /**
      * Asynchronously analyzes the given text and extracts a list of sentiment signals.

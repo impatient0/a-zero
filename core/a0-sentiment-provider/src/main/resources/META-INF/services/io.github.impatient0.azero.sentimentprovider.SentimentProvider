@@ -1,0 +1,3 @@
+# A-Zero Sentiment Provider Service Implementations
+io.github.impatient0.azero.sentimentprovider.dummy.RandomSentimentProvider
+io.github.impatient0.azero.sentimentprovider.gemini.GeminiSentimentProvider

@@ -1,5 +1,6 @@
 package io.github.impatient0.azero.sentimentprovider.dummy;
 
+import io.github.impatient0.azero.sentimentprovider.ProviderConfig;
 import io.github.impatient0.azero.sentimentprovider.Sentiment;
 import io.github.impatient0.azero.sentimentprovider.SentimentProvider;
 import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
@@ -22,6 +23,14 @@ public class RandomSentimentProvider implements SentimentProvider {
     private static final List<String> SYMBOLS = List.of("BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT");
     private static final Sentiment[] SENTIMENTS = Sentiment.values();
     private final Random random = new Random();
+
+    @Override
+    public String getName() {
+        return "RANDOM";
+    }
+
+    @Override
+    public void init(ProviderConfig config) {}
 
     /**
      * Asynchronously generates a single, random sentiment signal while completely ignoring the input text.

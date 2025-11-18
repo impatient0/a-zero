@@ -10,13 +10,13 @@ import com.google.genai.types.HttpOptions;
 import com.google.genai.types.HttpRetryOptions;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Type;
+import io.github.impatient0.azero.sentimentprovider.ProviderConfig;
 import io.github.impatient0.azero.sentimentprovider.Sentiment;
 import io.github.impatient0.azero.sentimentprovider.SentimentProvider;
 import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
 import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -28,9 +28,10 @@ public class GeminiSentimentProvider implements SentimentProvider {
 
     private record GeminiSignal(String symbol, Sentiment sentiment, double confidence) {}
 
-    private final Client geminiClient;
-    private final String modelName;
-    private final ObjectMapper objectMapper;
+    private Client geminiClient;
+    private String modelName;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private boolean isInitialized = false;
 
     private static final String PROMPT_TEMPLATE = """
         Analyze the following text for its sentiment towards any mentioned cryptocurrency symbols \
@@ -68,23 +69,36 @@ public class GeminiSentimentProvider implements SentimentProvider {
     }
 
     /**
-     * Constructs a new GeminiSentimentProvider.
-     *
-     * @param apiKey    The Google Gemini API key. Must not be null or blank.
-     * @param modelName The name of the Gemini model to use (e.g., "gemini-2.5-flash"). Must not be null or blank.
-     * @throws IllegalArgumentException if apiKey or modelName are null or blank.
+     * Default, parameterless constructor required for SPI.
      */
-    public GeminiSentimentProvider(String apiKey, String modelName) {
+    public GeminiSentimentProvider() {
+    }
+
+    @Override
+    public String getName() {
+        return "GEMINI";
+    }
+
+    /**
+     * Initializes the {@code GeminiSentimentProvider} by configuring the underlying
+     * {@link Client} for the Google Gemini API.
+     *
+     * @param config The {@link ProviderConfig} containing necessary initialization
+     *               parameters, most importantly the {@code "apiKey"}.
+     */
+    @Override
+    public void init(ProviderConfig config) {
+        String apiKey = config.getRequiredString("apiKey");
+        // TODO: un-hardcode model name
+        this.modelName = "gemini-2.5-flash-lite";
+
         if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalArgumentException("API key cannot be null or blank.");
-        }
-        if (modelName == null || modelName.isBlank()) {
-            throw new IllegalArgumentException("Model name cannot be null or blank.");
+            throw new IllegalArgumentException("API is blank or missing.");
         }
 
         this.geminiClient = createClient(apiKey);
-        this.modelName = modelName;
-        this.objectMapper = new ObjectMapper();
+        this.isInitialized = true;
+        log.info("GeminiSentimentProvider initialized for model '{}'.", this.modelName);
     }
 
     /**
