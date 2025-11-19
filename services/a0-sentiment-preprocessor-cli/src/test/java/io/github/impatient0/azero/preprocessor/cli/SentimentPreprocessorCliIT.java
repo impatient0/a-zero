@@ -108,7 +108,7 @@ class SentimentPreprocessorCliIT {
     // Helper to write a simple input CSV
     private void createInputCsv(Path path, List<String[]> rows) throws IOException {
         try (BufferedWriter writer = Files.newBufferedWriter(path);
-            CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT.builder().setHeader("timestamp", "content").build())) {
+            CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT.builder().setHeader("timestamp", "content").get())) {
             for (String[] row : rows) {
                 printer.printRecord((Object[]) row);
             }

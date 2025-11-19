@@ -104,7 +104,6 @@ public class SentimentPreprocessorCli implements Callable<Integer> {
 
         // 3. Setup Concurrency and Rate Limiting
         // TODO: make rate limit configurable
-        SimpleRateLimiter rateLimiter = new SimpleRateLimiter(15);
         ExecutorService executor = Executors.newFixedThreadPool(maxConcurrency);
 
         log.info("Starting processing with Concurrency={} and RateLimit=15 RPM...", maxConcurrency);
@@ -115,10 +114,7 @@ public class SentimentPreprocessorCli implements Callable<Integer> {
         // 4. Submit Tasks
         for (RawNewsArticle article : articles) {
             CompletableFuture<ProcessingResult> future = CompletableFuture
-                .supplyAsync(() -> {
-                    rateLimiter.acquire();
-                    return article;
-                }, executor)
+                .supplyAsync(() -> article, executor)
                 .thenCompose(a -> provider.analyzeAsync(a.content(), a.timestamp()))
                 .handle((signals, ex) -> new ProcessingResult(article, signals, ex));
 

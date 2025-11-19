@@ -11,12 +11,14 @@ import com.google.genai.types.HttpRetryOptions;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Type;
 import io.github.impatient0.azero.sentimentprovider.ProviderConfig;
-import io.github.impatient0.azero.sentimentprovider.Sentiment;
 import io.github.impatient0.azero.sentimentprovider.SentimentProvider;
 import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
 import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
+import io.github.impatient0.azero.sentimentprovider.util.SimpleRateLimiter;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -26,13 +28,35 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class GeminiSentimentProvider implements SentimentProvider {
 
-    private record GeminiSignal(String symbol, Sentiment sentiment, double confidence) {}
-
+    /**
+     * The underlying {@link Client} used to communicate with the Google Gemini API.
+     */
     private Client geminiClient;
+    /**
+     * The name of the Gemini model to use for analysis (e.g., "gemini-2.5-flash-lite").
+     */
     private String modelName;
+    /**
+     * The Jackson {@link ObjectMapper} for parsing the JSON response from the Gemini API.
+     */
     private final ObjectMapper objectMapper = new ObjectMapper();
+    /**
+     * Flag indicating whether the provider has been initialized via the {@link #init(ProviderConfig)} method.
+     */
     private boolean isInitialized = false;
+    /**
+     * Rate limiter to control the frequency of API requests based on the configured RPM.
+     */
+    private SimpleRateLimiter rateLimiter;
+    /**
+     * Executor service that uses virtual threads for executing rate limit acquisition and API calls asynchronously.
+     */
+    private ExecutorService virtualThreadExecutor;
 
+    /**
+     * The template for the prompt sent to the Gemini model.
+     * It instructs the model to perform sentiment analysis and return a structured JSON array.
+     */
     private static final String PROMPT_TEMPLATE = """
         Analyze the following text for its sentiment towards any mentioned cryptocurrency symbols \
         (e.g., BTC, ETH). Your response MUST be a valid JSON array of objects. Each object must contain \
@@ -41,6 +65,10 @@ public class GeminiSentimentProvider implements SentimentProvider {
         
         Text: "{inputText}\"""";
 
+    /**
+     * Configuration for content generation, specifically enforcing JSON output
+     * based on the defined {@link Schema} for the list of {@link SentimentSignal}s.
+     */
     private static final GenerateContentConfig JSON_CONFIG;
 
     static {
@@ -92,6 +120,19 @@ public class GeminiSentimentProvider implements SentimentProvider {
         // TODO: un-hardcode model name
         this.modelName = "gemini-2.5-flash-lite";
 
+        int rpm = 15;
+        String rpmStr = config.getString("requestsPerMinute");
+        if (rpmStr != null && !rpmStr.isBlank()) {
+            try {
+                rpm = Integer.parseInt(rpmStr);
+            } catch (NumberFormatException e) {
+                log.warn("Invalid requestsPerMinute config '{}', defaulting to 15.", rpmStr);
+            }
+        }
+
+        this.rateLimiter = new SimpleRateLimiter(rpm);
+        this.virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalArgumentException("API is blank or missing.");
         }
@@ -104,6 +145,9 @@ public class GeminiSentimentProvider implements SentimentProvider {
     /**
      * Creates the Gemini Client. Extracted to a protected method to allow for
      * overriding in unit tests for mock injection.
+     *
+     * @param apiKey The API key used for authentication.
+     * @return A configured {@link Client} instance.
      */
     protected Client createClient(String apiKey) {
         HttpOptions httpOptions = HttpOptions.builder()
@@ -123,6 +167,7 @@ public class GeminiSentimentProvider implements SentimentProvider {
      * with an empty list if the input text is null or blank without making an API call.
      *
      * @param text The raw text to analyze.
+     * @param timestamp The timestamp to associate with the resulting {@link SentimentSignal}s.
      * @return A non-null {@link CompletableFuture} that, upon completion, holds a
      *         {@link List} of {@link SentimentSignal}s extracted from the text.
      * @throws SentimentProviderException if there is a communication failure with the
@@ -131,15 +176,25 @@ public class GeminiSentimentProvider implements SentimentProvider {
      */
     @Override
     public CompletableFuture<List<SentimentSignal>> analyzeAsync(String text, long timestamp) {
+        if (!isInitialized) {
+            return CompletableFuture.failedFuture(
+                new IllegalStateException("GeminiSentimentProvider has not been initialized. Call init() first."));
+        }
+
         if (text == null || text.isBlank()) {
             return CompletableFuture.completedFuture(List.of());
         }
 
         String prompt = PROMPT_TEMPLATE.replace("{inputText}", text);
 
-        log.debug("Sending async request to Gemini model '{}'...", modelName);
-        return geminiClient.async.models
-            .generateContent(this.modelName, prompt, JSON_CONFIG)
+        return CompletableFuture.supplyAsync(() -> {
+                rateLimiter.acquire();
+                return null;
+            }, virtualThreadExecutor)
+            .thenCompose(v -> {
+                log.debug("Sending async request to Gemini model '{}'...", modelName);
+                return geminiClient.async.models.generateContent(this.modelName, prompt, JSON_CONFIG);
+            })
             .handle((response, throwable) -> {
                 if (throwable != null) {
                     log.error("A network or API error occurred while contacting the Gemini API.", throwable);
@@ -149,10 +204,9 @@ public class GeminiSentimentProvider implements SentimentProvider {
                 String jsonResponse = response.text();
                 log.debug("Received async raw JSON response from Gemini: {}", jsonResponse);
                 try {
-                    List<GeminiSignal> geminiSignals = objectMapper.readValue(jsonResponse, new TypeReference<>() {});
-
-                    return geminiSignals.stream()
-                        .map(gs -> new SentimentSignal(timestamp, gs.symbol(), gs.sentiment(), gs.confidence()))
+                    List<SentimentSignal> signals = objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+                    return signals.stream()
+                        .map(s -> new SentimentSignal(timestamp, s.symbol(), s.sentiment(), s.confidence()))
                         .toList();
                 } catch (JsonProcessingException e) {
                     log.error("Failed to parse a malformed JSON response from the Gemini API.", e);
