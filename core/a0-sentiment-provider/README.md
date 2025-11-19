@@ -7,73 +7,72 @@ The core contract is defined by the `SentimentProvider` interface, which is desi
 ## Core Components
 
 ### `SentimentProvider` Interface
-This is the central abstraction of the module. It defines a single method, `analyzeAsync(String text)`, which takes raw text as input and returns a `CompletableFuture<List<SentimentSignal>>`. Implementations of this interface contain the logic for communicating with specific backends (e.g., an external LLM API).
+This is the central abstraction. It is designed for **Service Provider Interface (SPI)** discovery and **Asynchronous** execution.
+
+*   **Discovery:** Implementations are discovered at runtime using `java.util.ServiceLoader`.
+*   **Initialization:** Providers are initialized via `init(ProviderConfig)` rather than constructors.
+*   **Execution:** The `analyzeAsync` method returns a `CompletableFuture` to support non-blocking I/O.
 
 ### `SentimentSignal` Record
 A simple, immutable data record that represents the output of a sentiment analysis for a single asset. It contains:
+- `timestamp` (long): The timestamp of the source data (e.g., news article time).
 - `symbol` (String): The trading symbol (e.g., "BTCUSDT").
 - `sentiment` (Enum): The categorical sentiment (`BULLISH`, `BEARISH`, `NEUTRAL`).
 - `confidence` (double): A score from 0.0 to 1.0 representing the provider's confidence.
 
 ---
 
-## Implementations
+## Included Implementations
 
-### `GeminiSentimentProvider`
-A production-ready, asynchronous implementation of `SentimentProvider` that uses the Google Gemini API for sentiment analysis. It leverages the model's structured output capabilities to ensure a reliable and parseable JSON response.
+### 1. `GeminiSentimentProvider` (SPI Name: `GEMINI`)
+A production-ready implementation using the Google Gemini API.
+*   **Features:** Structured JSON output, internal rate limiting (defaults to 15 RPM), automatic retries on 429 errors.
+*   **Configuration:** Requires `apiKey` in the `ProviderConfig`.
 
-#### Configuration and API Key
-To use this provider, you must have a Google Gemini API key. For security, it is **strongly recommended** to provide this key via an environment variable and **never hardcode it in your source code.**
+### 2. `RandomSentimentProvider` (SPI Name: `RANDOM`)
+A dummy implementation for testing.
+*   **Features:** Returns random signals immediately. No network usage.
+*   **Configuration:** None required.
 
-The provider expects the key to be loaded from the environment and passed into its constructor:
+---
+
+## Usage Example (SPI)
+
 ```java
-String apiKey = System.getenv("GEMINI_API_KEY");
-if (apiKey == null || apiKey.isBlank()) {
-    throw new IllegalStateException("GEMINI_API_KEY environment variable not set.");
-}
-String modelName = "gemini-2.5-flash-lite"; // Or any other suitable model
-SentimentProvider provider = new GeminiSentimentProvider(apiKey, modelName);
-```
-
-#### Asynchronous Usage Example
-```java
+import io.github.impatient0.azero.sentimentprovider.ProviderConfig;
 import io.github.impatient0.azero.sentimentprovider.SentimentProvider;
-import io.github.impatient0.azero.sentimentprovider.gemini.GeminiSentimentProvider;
+import java.util.Map;
+import java.util.ServiceLoader;
 
 public class SentimentExample {
     public static void main(String[] args) {
-        // --- 1. Configuration ---
-        String apiKey = System.getenv("GEMINI_API_KEY");
-        if (apiKey == null) {
-            System.err.println("Error: GEMINI_API_KEY environment variable is not set.");
-            return;
-        }
-        SentimentProvider provider = new GeminiSentimentProvider(apiKey, "gemini-1.5-flash-latest");
+        // 1. Discover Provider via SPI
+        ServiceLoader<SentimentProvider> loader = ServiceLoader.load(SentimentProvider.class);
+        SentimentProvider provider = loader.stream()
+            .map(ServiceLoader.Provider::get)
+            .filter(p -> p.getName().equals("GEMINI"))
+            .findFirst()
+            .orElseThrow();
 
-        // --- 2. Asynchronous API Call ---
-        String newsHeadline = "Major financial institution announces plans to adopt Bitcoin.";
-        provider.analyzeAsync(newsHeadline)
+        // 2. Initialize
+        Map<String, String> configMap = Map.of("apiKey", System.getenv("GEMINI_API_KEY"));
+        provider.init(new ProviderConfig(configMap));
+
+        // 3. Analyze Asynchronously
+        long articleTime = System.currentTimeMillis();
+        String text = "Bitcoin hits all-time high!";
+
+        provider.analyzeAsync(text, articleTime)
             .thenAccept(signals -> {
-                // --- 3. Handle Successful Result ---
-                System.out.println("Analysis successful. Signals found: " + signals.size());
-                signals.forEach(signal ->
-                    System.out.printf(
-                        "  - Symbol: %s, Sentiment: %s, Confidence: %.2f%n",
-                        signal.symbol(),
-                        signal.sentiment(),
-                        signal.confidence()
-                    )
-                );
+                signals.forEach(System.out::println);
             })
-            .exceptionally(ex -> {
-                // --- 4. Handle Failure ---
-                System.err.println("Sentiment analysis failed: " + ex.getMessage());
-                return null; // Return null to end the exceptionally chain
-            })
-            .join(); // Block for the result in this simple main method example
+            .join(); // Block for demonstration
     }
 }
 ```
+## Future Roadmap & Known Limitations
 
-### `RandomSentimentProvider`
-A dummy, in-memory implementation of `SentimentProvider` that is included for testing and development purposes. It ignores its input and returns a randomly generated `SentimentSignal` wrapped in an already-completed `CompletableFuture`. It requires no API key.
+The following items are currently in the backlog for this library:
+
+*   **Automatic Schema Generation:** Currently, the JSON schema sent to the Gemini API is manually constructed using the SDK's builder. A future enhancement should generate this schema dynamically from the `SentimentSignal` record class (using reflection or a library like Jackson) to ensure a single source of truth and reduce maintenance overhead.
+*   **Token Bucket Rate Limiter:** The current `SimpleRateLimiter` enforces a strict interval between requests. Implementing a Token Bucket algorithm would allow for better handling of request bursts and improved throughput while still respecting API quotas.

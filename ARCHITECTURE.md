@@ -75,14 +75,20 @@ This project follows an "Open Core" model, separating the reusable framework fro
 ### 3.6 Module: `a0-sentiment-provider` (Library)
 - **Status:** Implemented in v0.3
 - **Responsibility:** To provide a standardized interface (`SentimentProvider`) for querying sentiment analysis services (e.g., external LLMs) and the data models (`SentimentSignal`) for representing their output.
-- **Inputs:** A string of text.
-- **Outputs:** A `CompletableFuture<List<SentimentSignal>>` object, where each `SentimentSignal` contains a symbol, sentiment, and confidence score.
+- **Inputs:** Text content and a timestamp.
+- **Outputs:** A `CompletableFuture<List<SentimentSignal>>` object, where each `SentimentSignal` contains a timestamp, symbol, sentiment, and confidence score.
 
 ### 3.7 Module: `a0-news-feed-client` (Library)
 - **Status:** Implemented in v0.3
 - **Responsibility:** To provide clients for reading raw news data from various sources. The initial implementation (`CsvNewsClient`) handles loading news articles from structured CSV files.
 - **Inputs:** A path to a data file (e.g., a CSV file).
 - **Outputs:** A list of `RawNewsArticle` objects.
+
+### 3.8 Module: `a0-sentiment-preprocessor-cli` (Application)
+- **Status:** Implemented in v0.3
+- **Responsibility:** To read raw news CSVs and produce processed sentiment CSVs. It orchestrates concurrent sentiment analysis using a discovered SPI provider.
+- **Inputs:** Raw news CSV file, provider selection, concurrency settings.
+- **Outputs:** A structured sentiment CSV file.
 
 ## 4. Data Contracts & Core Interfaces
 
@@ -127,6 +133,19 @@ This interface is the strategy's gateway to the trading environment. It abstract
 public interface TradingContext {
     Optional<Position> getOpenPosition(String symbol);
     void submitOrder(String symbol, TradeDirection direction, BigDecimal quantity, BigDecimal price);
+}
+```
+
+#### `SentimentProvider.java`
+This interface defines the contract for any service responsible for financial sentiment analysis. It is central to the `a0-sentiment-provider` module and is designed for discovery and extensibility using the Java Service Provider Interface (SPI). It facilitates the asynchronous processing of raw news text into structured sentiment signals.
+
+The core method returns a `CompletableFuture`, which allows orchestration of high-concurrency analysis jobs without blocking on external API calls.
+
+```java
+public interface SentimentProvider {
+    String getName();
+    void init(ProviderConfig config);
+    CompletableFuture<List<SentimentSignal>> analyzeAsync(String text, long timestamp);
 }
 ```
 

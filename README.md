@@ -46,7 +46,7 @@ This project is in its early stages. Our planned development path is:
         *   [x] `a0-sentiment-provider`: Created the core interface (`SentimentProvider`) and data models.
         *   [x] `a0-news-feed-client`: Created the library for reading raw news data from CSV files.
     *   [x] **`a0-sentiment-provider`:** Implement a real, working provider that connects to an external LLM API (*Google GenAI API*).
-    *   [ ] **`a0-sentiment-preprocessor-cli`:** Build a new CLI tool to process raw news files, query the `SentimentProvider`, and save the resulting `SentimentSignal`s to a structured CSV file.
+    *   [x] **`a0-sentiment-preprocessor-cli`:** Build a new CLI tool to process raw news files, query the `SentimentProvider`, and save the resulting `SentimentSignal`s to a structured CSV file.
     *   [ ] **`a0-backtester-cli` & Core Engine:** Enhance the backtester to load and use the pre-processed sentiment data, making it available to strategies via the `TradingContext`.
     *   [ ] **`a0-strategy-rules-engine`:** Add a new `Sentiment` rule type to the YAML DSL, allowing strategies to trade based on sentiment signals.
 *   [ ] **v0.4:** Integration with exchange Testnet APIs for paper trading.
