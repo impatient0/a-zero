@@ -212,7 +212,11 @@ class GeminiSentimentProviderTest {
             // --- ASSERT ---
             CompletionException ex = assertThrows(CompletionException.class, future::join);
             assertInstanceOf(SentimentProviderException.class, ex.getCause());
-            assertInstanceOf(GenAiIOException.class, ex.getCause().getCause());
+            Throwable rootCause = ex.getCause();
+            while (rootCause.getCause() != null) {
+                rootCause = rootCause.getCause();
+            }
+            assertInstanceOf(GenAiIOException.class, rootCause);
             assertTrue(ex.getMessage().contains("Failed to get sentiment due to API/network error."));
         }
 

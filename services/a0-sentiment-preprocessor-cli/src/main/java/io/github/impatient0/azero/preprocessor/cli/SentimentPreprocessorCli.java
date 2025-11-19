@@ -138,7 +138,7 @@ public class SentimentPreprocessorCli implements Callable<Integer> {
         log.info("Failed:  {} / {}", failures.size(), articles.size());
 
         if (!failures.isEmpty()) {
-            log.warn("Some articles failed to process. Check logs for details. First failure: {}", failures.get(0).exception().getMessage());
+            log.warn("Some articles failed to process. Check logs for details. First failure: {}", failures.getFirst().exception().getMessage());
         }
 
         executor.shutdown();
