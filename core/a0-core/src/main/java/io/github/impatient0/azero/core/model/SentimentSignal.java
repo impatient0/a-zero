@@ -1,11 +1,11 @@
-package io.github.impatient0.azero.sentimentprovider;
+package io.github.impatient0.azero.core.model;
 
 /**
  * Represents a single, actionable sentiment signal for a specific trading symbol
  * at a specific point in time.
  * <p>
- * This is an immutable data carrier that encapsulates the complete output from a
- * {@link SentimentProvider} for one asset.
+ * This is an immutable data carrier that encapsulates the complete sentiment analysis result
+ * for one asset.
  *
  * @param timestamp  The timestamp of the original data point (e.g., news article)
  *                   that generated this signal, in milliseconds since the Unix epoch.
@@ -19,5 +19,4 @@ public record SentimentSignal(
     String symbol,
     Sentiment sentiment,
     double confidence
-) {
-}
+) {}

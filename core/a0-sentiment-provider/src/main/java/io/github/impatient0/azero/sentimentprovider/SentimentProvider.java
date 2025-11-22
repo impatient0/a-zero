@@ -1,5 +1,6 @@
 package io.github.impatient0.azero.sentimentprovider;
 
+import io.github.impatient0.azero.core.model.SentimentSignal;
 import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

@@ -2,8 +2,8 @@ package io.github.impatient0.azero.sentimentprovider.gemini;
 
 import io.github.cdimascio.dotenv.Dotenv;
 import io.github.impatient0.azero.sentimentprovider.ProviderConfig;
-import io.github.impatient0.azero.sentimentprovider.Sentiment;
-import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
+import io.github.impatient0.azero.core.model.Sentiment;
+import io.github.impatient0.azero.core.model.SentimentSignal;
 import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
 import java.util.Map;
 import org.junit.jupiter.api.Assumptions;

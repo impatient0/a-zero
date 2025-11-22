@@ -1,9 +1,9 @@
 package io.github.impatient0.azero.sentimentprovider.dummy;
 
 import io.github.impatient0.azero.sentimentprovider.ProviderConfig;
-import io.github.impatient0.azero.sentimentprovider.Sentiment;
+import io.github.impatient0.azero.core.model.Sentiment;
 import io.github.impatient0.azero.sentimentprovider.SentimentProvider;
-import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
+import io.github.impatient0.azero.core.model.SentimentSignal;
 import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
 
 import java.util.List;

@@ -5,7 +5,7 @@ import io.github.impatient0.azero.newsfeedclient.CsvNewsClient;
 import io.github.impatient0.azero.newsfeedclient.RawNewsArticle;
 import io.github.impatient0.azero.sentimentprovider.ProviderConfig;
 import io.github.impatient0.azero.sentimentprovider.SentimentProvider;
-import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
+import io.github.impatient0.azero.core.model.SentimentSignal;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;

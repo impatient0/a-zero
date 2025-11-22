@@ -12,7 +12,7 @@ import com.google.genai.types.Schema;
 import com.google.genai.types.Type;
 import io.github.impatient0.azero.sentimentprovider.ProviderConfig;
 import io.github.impatient0.azero.sentimentprovider.SentimentProvider;
-import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
+import io.github.impatient0.azero.core.model.SentimentSignal;
 import io.github.impatient0.azero.sentimentprovider.exception.SentimentProviderException;
 import io.github.impatient0.azero.sentimentprovider.util.SimpleRateLimiter;
 import java.util.List;

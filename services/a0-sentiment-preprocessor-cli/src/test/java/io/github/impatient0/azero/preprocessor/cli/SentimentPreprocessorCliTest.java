@@ -1,9 +1,9 @@
 package io.github.impatient0.azero.preprocessor.cli;
 
 import io.github.impatient0.azero.newsfeedclient.RawNewsArticle;
-import io.github.impatient0.azero.sentimentprovider.Sentiment;
+import io.github.impatient0.azero.core.model.Sentiment;
 import io.github.impatient0.azero.sentimentprovider.SentimentProvider;
-import io.github.impatient0.azero.sentimentprovider.SentimentSignal;
+import io.github.impatient0.azero.core.model.SentimentSignal;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;

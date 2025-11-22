@@ -1,4 +1,4 @@
-package io.github.impatient0.azero.sentimentprovider;
+package io.github.impatient0.azero.core.model;
 
 /**
  * Represents the categorical sentiment of a piece of text or data.
