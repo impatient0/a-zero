@@ -15,12 +15,6 @@
   <name>A-Zero :: Backtester CLI</name>
   <description>A command-line application to run backtest simulations.</description>
 
-  <properties>
-    <maven.compiler.source>21</maven.compiler.source>
-    <maven.compiler.target>21</maven.compiler.target>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  </properties>
-
   <dependencies>
     <!-- ============================================================= -->
     <!-- A-ZERO INTERNAL MODULES                                       -->
@@ -88,6 +82,7 @@
               <goal>shade</goal>
             </goals>
             <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
               <filters>
                 <filter>
                   <artifact>*:*</artifact>

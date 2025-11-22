@@ -15,12 +15,6 @@
   <name>A-Zero :: Core</name>
   <description>Core data models and interfaces for the A-Zero trading system.</description>
 
-  <properties>
-    <maven.compiler.source>21</maven.compiler.source>
-    <maven.compiler.target>21</maven.compiler.target>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  </properties>
-
   <dependencies>
     <!-- ============================================================= -->
     <!-- LOGGING                                                       -->

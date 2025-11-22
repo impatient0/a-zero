@@ -16,8 +16,8 @@
     <!-- ============================================================= -->
     <revision>0.3.0-SNAPSHOT</revision>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>21</maven.compiler.source>
-    <maven.compiler.target>21</maven.compiler.target>
+    <maven.compiler.source>25</maven.compiler.source>
+    <maven.compiler.target>25</maven.compiler.target>
 
     <!-- ============================================================= -->
     <!-- CENTRALIZED DEPENDENCY VERSIONS                               -->
@@ -34,12 +34,13 @@
     <google.genai.version>1.27.0</google.genai.version>
     <flatten-maven-plugin.version>1.7.3</flatten-maven-plugin.version>
     <dotenv-java.version>3.2.0</dotenv-java.version>
+    <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
 
     <!-- ============================================================= -->
     <!-- TEST DEPENDENCY VERSIONS                                      -->
     <!-- ============================================================= -->
     <mockito.version>5.20.0</mockito.version>
-    <junit.version>6.0.0</junit.version>
+    <junit.version>6.0.1</junit.version>
     <system-lambda.version>1.2.1</system-lambda.version>
   </properties>
 
@@ -217,6 +218,22 @@
               </goals>
             </execution>
           </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>${maven-compiler-plugin.version}</version>
+          <configuration>
+            <source>${maven.compiler.source}</source>
+            <target>${maven.compiler.target}</target>
+            <annotationProcessorPaths>
+              <path>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+              </path>
+            </annotationProcessorPaths>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
