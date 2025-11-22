@@ -35,5 +35,7 @@ jobs:
           cache: 'maven'
 
       # Step 3: Build the project, run tests, and package the artifacts.
-      - name: Build and Test with Maven
-        run: mvn -B package
+      - name: Build and Test with Maven Wrapper
+        run: |
+          chmod +x mvnw
+          ./mvnw -B verify
