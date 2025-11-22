@@ -13,7 +13,7 @@ This application reads raw news headlines from a CSV file, processes them concur
 
 ## Prerequisites
 
-*   Java 21 or higher.
+*   Java 25 or higher.
 *   Maven 3.9+ (for building).
 *   A Google Gemini API Key (if using the default provider).
 

@@ -154,7 +154,7 @@ public interface SentimentProvider {
 
 The project's quality and stability are enforced by an automated Continuous Integration (CI) workflow defined in [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
-The CI process is triggered on all pushes and pull requests to the `main` and `develop` branches. On each trigger, the workflow executes the `mvn -B package` command within a clean Ubuntu environment using JDK 21. This single command serves as our primary quality gate by performing three critical actions:
+The CI process is triggered on all pushes and pull requests to the `main` and `develop` branches. On each trigger, the workflow executes the `mvn -B package` command within a clean Ubuntu environment using JDK 25. This single command serves as our primary quality gate by performing three critical actions:
 
 1.  **Compile:** Verifies that all source code is syntactically correct and compiles successfully.
 2.  **Test:** Executes the complete suite of automated tests across all project modules.
