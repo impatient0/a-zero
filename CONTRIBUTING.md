@@ -57,7 +57,7 @@ The project is organized into a strict hierarchy. You MUST NOT create flat modul
 
 ## 2. Coding Standards (Java)
 
-**Language Level:** The project uses **Java 21** (LTS). Code should leverage modern language features (Records, Pattern Matching, Virtual Threads) where appropriate.
+**Language Level:** The project uses **Java 25** (LTS). Code should leverage modern language features (Records, Pattern Matching, Virtual Threads) where appropriate.
 
 **Style Guide:** Code should generally follow standard Java conventions, with specific overrides listed below.
 
