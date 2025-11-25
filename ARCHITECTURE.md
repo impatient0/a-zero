@@ -54,8 +54,9 @@ This project follows an "Open Core" model, separating the reusable framework fro
 - **Documentation:** See Backtester's [README.md](backtesting/a0-backtester/README.md)
 - **Responsibility:** To provide a robust, event-driven engine for simulating a trading strategy against historical data. It manages portfolio state, simulates realistic trading costs, and produces a detailed performance summary. This is a non-executable library.
 - **Inputs:**
-    - Path to a data CSV file (produced by `data-ingestor`).
-    - Path to a strategy definition YAML file.
+    - `Strategy` implementation.
+    - Map of `MarketEvent` data.
+    - Optional map of `SentimentSignal` data.
 - **Outputs:** A performance summary printed to the console.
 
 ### 3.4 Module: `a0-strategy-rules-engine` (Library)
@@ -69,7 +70,7 @@ This project follows an "Open Core" model, separating the reusable framework fro
 - **Status:** Implemented in v0.2
 - **Documentation:** See Backtester CLI's [README.md](backtesting/a0-backtester-cli/README.md)
 - **Responsibility:** To provide a user-facing command-line interface for the backtester. It wires together the data, the backtesting engine, and the strategy rules engine to run a full simulation.
-- **Inputs:** Command-line arguments specifying paths to data files and strategy definition files.
+- **Inputs:** Command-line arguments specifying paths to data files (candle data and optionally sentiment data) and strategy definition files.
 - **Outputs:** A formatted performance summary printed to the console.
 
 ### 3.6 Module: `a0-sentiment-provider` (Library)
@@ -127,11 +128,17 @@ The strategy implementation is expected to be stateful, maintaining its own hist
 #### `TradingContext.java`
 This interface is the strategy's gateway to the trading environment. It abstracts away the difference between a backtest and live trading. The interaction follows a "Fire-and-Reconcile" pattern:
 1.  **Fire:** The strategy states its intent by calling `submitOrder(...)`. This method returns `void` and does not block.
-2.  **Reconcile:** On the next `onCandle` event, the strategy calls `getOpenPosition(...)` to see the actual state of its portfolio, thus reconciling its internal state with the "ground truth" of the execution environment.
+2.  **Reconcile:** On the next `onMarketEvent` invocation, the strategy calls `getOpenPosition(...)` to see the actual state of its portfolio, thus reconciling its internal state with the "ground truth" of the execution environment.
 
 ```java
 public interface TradingContext {
     Optional<Position> getOpenPosition(String symbol);
+    Map<String, Position> getOpenPositions();
+    BigDecimal getNetAssetValue();
+    BigDecimal getMarginEquity();
+    Map<String, BigDecimal> getWalletBalances();
+    BigDecimal getAssetBalance(String asset);
+    Optional<Sentiment> getCurrentSentiment(String symbol);
     void submitOrder(String symbol, TradeDirection direction, BigDecimal quantity, BigDecimal price);
 }
 ```

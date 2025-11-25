@@ -40,6 +40,7 @@ The application is configured using the following command-line flags. You can al
 | :--------- | :-------------------- | :------- | :----------------------------------------------------------------------------- | :------------ |
 | `-s`       | `--strategy-file`     | Yes      | The path to the strategy's `.yaml` configuration file.                           |               |
 | `-d`       | `--data-file`         | Yes      | The path to the CSV file containing historical candle data.                      |               |
+|            | `--sentiment-file`    | No       | Path to a CSV file containing pre-processed sentiment signals.                 |               |
 |            | `--symbol`            | Yes      | The trading symbol for the backtest (e.g., `BTCUSDT`).                           |               |
 | `-a`       | `--account-mode`      | Yes      | The account mode to simulate. Valid values: `SPOT_ONLY`, `MARGIN`.             |               |
 | `-c`       | `--initial-capital`   | No       | The starting capital for the simulation (in the quote currency, e.g., USDT).   | `10000.00`    |
