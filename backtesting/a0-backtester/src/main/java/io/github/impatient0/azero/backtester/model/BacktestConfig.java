@@ -2,12 +2,14 @@ package io.github.impatient0.azero.backtester.model;
 
 import io.github.impatient0.azero.core.model.AccountMode;
 import io.github.impatient0.azero.core.model.Candle;
+import io.github.impatient0.azero.core.model.SentimentSignal;
 import io.github.impatient0.azero.core.strategy.Strategy;
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.Value;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -27,6 +29,16 @@ public class BacktestConfig {
      */
     @NonNull
     Map<String, List<Candle>> historicalData;
+
+    /**
+     * A map of historical sentiment data, where the key is the trading symbol
+     * (e.g., "BTCUSDT") and the value is a list of {@link SentimentSignal} objects.
+     * <p>
+     * Defaults to an empty map if no sentiment data is provided.
+     */
+    @NonNull
+    @Builder.Default
+    Map<String, List<SentimentSignal>> sentimentData = Collections.emptyMap();
 
     /**
      * The starting cash balance for the simulation.

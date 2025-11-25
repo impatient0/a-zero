@@ -7,6 +7,8 @@ import io.github.impatient0.azero.core.event.MarketEvent;
 import io.github.impatient0.azero.core.model.AccountMode;
 import io.github.impatient0.azero.core.model.Candle;
 import io.github.impatient0.azero.core.model.Position;
+import io.github.impatient0.azero.core.model.Sentiment;
+import io.github.impatient0.azero.core.model.SentimentSignal;
 import io.github.impatient0.azero.core.model.Trade;
 import io.github.impatient0.azero.core.model.TradeDirection;
 import io.github.impatient0.azero.core.strategy.Strategy;
@@ -48,86 +50,131 @@ public class BacktestEngine {
      * Executes a backtest simulation based on the provided configuration.
      * <p>
      * This method is the main entry point for the engine. It initializes the
-     * {@link BacktestTradingContext} with the user-defined parameters, prepares the
-     * historical data for efficient time-series processing, and runs the main event
-     * loop that drives the simulation candle by candle.
+     * {@link BacktestTradingContext}, prepares historical data, and runs
+     * the main event loop.
      *
-     * @param config The {@link BacktestConfig} object containing all parameters for the
-     *               simulation run, including the strategy to be tested, initial capital,
-     *               historical data, and trading cost settings.
-     * @return A {@link BacktestResult} object containing a comprehensive summary of the
-     *         strategy's performance, including final portfolio value, P/L, and a
-     *         list of all executed trades.
+     * @param config The {@link BacktestConfig} object containing all parameters.
+     * @return A {@link BacktestResult} summary of the strategy's performance.
      */
     public BacktestResult run(BacktestConfig config) {
         Strategy strategy = config.getStrategy();
+        logStartupDetails(config, strategy);
 
+        var context = new BacktestTradingContext(config);
+
+        // Data prep extracted to methods
+        var marketDataIndex = indexMarketData(config.getHistoricalData());
+        var sentimentIndex = indexSentimentData(config.getSentimentData());
+        var eventTimeline = generateEventTimeline(config.getHistoricalData());
+
+        // Main Loop
+        for (Map.Entry<Long, List<MarketEvent>> entry : eventTimeline.entrySet()) {
+            long currentTimestamp = entry.getKey();
+            List<MarketEvent> marketEvents = entry.getValue();
+
+            updateContextState(context, currentTimestamp, marketDataIndex, sentimentIndex);
+            processMarginRequirements(context, config);
+
+            for (MarketEvent event : marketEvents) {
+                strategy.onMarketEvent(event, context);
+            }
+        }
+
+        log.info("Backtest simulation loop completed.");
+        return context.calculateResult();
+    }
+
+    private void logStartupDetails(BacktestConfig config, Strategy strategy) {
         log.info("Starting backtest run with initial capital: {}", config.getInitialCapital());
         log.info("Executing strategy: {}", strategy.getClass().getSimpleName());
         log.info("Simulation costs: Fee={}%, Slippage={}%",
             config.getTradingFeePercentage().multiply(BigDecimal.valueOf(100)),
             config.getSlippagePercentage().multiply(BigDecimal.valueOf(100)));
+    }
 
-        var context = new BacktestTradingContext(
-            config.getInitialCapital(),
-            config.getTradingFeePercentage(),
-            config.getSlippagePercentage(),
-            config.getAccountMode(),
-            config.getMarginLeverage(),
-            config.getMaintenanceMarginFactor()
-        );
-
-        // 1. Pre-process data for efficient lookup
-        Map<String, NavigableMap<Long, Candle>> dataByTimestamp = new HashMap<>();
-        NavigableMap<Long, List<MarketEvent>> eventsByTimestamp = new TreeMap<>();
-
-        for (Map.Entry<String, List<Candle>> entry : config.getHistoricalData().entrySet()) {
-            String symbol = entry.getKey();
+    /**
+     * Organizes candle data into NavigableMaps for efficient time-based lookups.
+     */
+    private Map<String, NavigableMap<Long, Candle>> indexMarketData(Map<String, List<Candle>> historicalData) {
+        Map<String, NavigableMap<Long, Candle>> index = new HashMap<>();
+        for (Map.Entry<String, List<Candle>> entry : historicalData.entrySet()) {
             NavigableMap<Long, Candle> symbolData = new TreeMap<>();
-            dataByTimestamp.put(symbol, symbolData);
-
             for (Candle candle : entry.getValue()) {
                 symbolData.put(candle.timestamp(), candle);
-                eventsByTimestamp.computeIfAbsent(candle.timestamp(), k -> new ArrayList<>())
+            }
+            index.put(entry.getKey(), symbolData);
+        }
+        return index;
+    }
+
+    /**
+     * Organizes sentiment data into NavigableMaps for efficient time-based lookups.
+     */
+    private Map<String, NavigableMap<Long, Sentiment>> indexSentimentData(Map<String, List<SentimentSignal>> sentimentData) {
+        Map<String, NavigableMap<Long, Sentiment>> index = new HashMap<>();
+        for (Map.Entry<String, List<SentimentSignal>> entry : sentimentData.entrySet()) {
+            NavigableMap<Long, Sentiment> symbolData = new TreeMap<>();
+            for (SentimentSignal signal : entry.getValue()) {
+                symbolData.put(signal.timestamp(), signal.sentiment());
+            }
+            index.put(entry.getKey(), symbolData);
+        }
+        return index;
+    }
+
+    /**
+     * Merges all candles from all symbols into a single timeline of events.
+     */
+    private NavigableMap<Long, List<MarketEvent>> generateEventTimeline(Map<String, List<Candle>> historicalData) {
+        NavigableMap<Long, List<MarketEvent>> timeline = new TreeMap<>();
+        for (Map.Entry<String, List<Candle>> entry : historicalData.entrySet()) {
+            String symbol = entry.getKey();
+            for (Candle candle : entry.getValue()) {
+                timeline.computeIfAbsent(candle.timestamp(), k -> new ArrayList<>())
                     .add(new MarketEvent(symbol, candle));
             }
         }
+        return timeline;
+    }
 
-        // 2. Main event loop
-        for (Map.Entry<Long, List<MarketEvent>> eventEntry : eventsByTimestamp.entrySet()) {
-            long currentTimestamp = eventEntry.getKey();
-            List<MarketEvent> newMarketEvents = eventEntry.getValue();
+    /**
+     * Resolves the current prices and sentiments using forward-filling (floorEntry)
+     * and updates the trading context.
+     */
+    private void updateContextState(BacktestTradingContext context,
+        long currentTimestamp,
+        Map<String, NavigableMap<Long, Candle>> marketIndex,
+        Map<String, NavigableMap<Long, Sentiment>> sentimentIndex) {
 
-            // 3. Construct the current price map (forward-filling missing prices)
-            Map<String, BigDecimal> currentPrices = new HashMap<>();
-            for (String symbol : dataByTimestamp.keySet()) {
-                // Find the latest candle at or before the current timestamp
-                Map.Entry<Long, Candle> priceEntry = dataByTimestamp.get(symbol).floorEntry(currentTimestamp);
-                if (priceEntry != null) {
-                    BigDecimal price = priceEntry.getValue().close();
-                    currentPrices.put(symbol.replace("USDT", ""), price); // Store as "BTC", "ETH"
-                }
-            }
-            currentPrices.put("USDT", BigDecimal.ONE); // Always add the quote currency
-
-            // 4. Update the context with the latest state of the world
-            context.updateCurrentPrices(currentPrices);
-
-            if (config.getAccountMode() == AccountMode.MARGIN) {
-                if (context.isMarginCallTriggered()) {
-                    context.liquidateAllPositions();
-                }
-            }
-
-            // 5. Notify the strategy of each new event for this timestamp
-            for (MarketEvent newMarketEvent : newMarketEvents) {
-                strategy.onMarketEvent(newMarketEvent, context);
+        Map<String, BigDecimal> currentPrices = new HashMap<>();
+        for (String symbol : marketIndex.keySet()) {
+            // Find the latest candle at or before currentTimestamp
+            var entry = marketIndex.get(symbol).floorEntry(currentTimestamp);
+            if (entry != null) {
+                String assetName = symbol.replace("USDT", "");
+                currentPrices.put(assetName, entry.getValue().close());
             }
         }
+        currentPrices.put("USDT", BigDecimal.ONE);
+        context.updateCurrentPrices(currentPrices);
 
-        log.info("Backtest simulation loop completed.");
+        Map<String, Sentiment> currentSentiments = new HashMap<>();
+        for (String symbol : sentimentIndex.keySet()) {
+            // Find the latest sentiment at or before currentTimestamp
+            var entry = sentimentIndex.get(symbol).floorEntry(currentTimestamp);
+            if (entry != null) {
+                currentSentiments.put(symbol, entry.getValue());
+            }
+        }
+        context.updateCurrentSentiments(currentSentiments);
+    }
 
-        return context.calculateResult();
+    private void processMarginRequirements(BacktestTradingContext context, BacktestConfig config) {
+        if (config.getAccountMode() == AccountMode.MARGIN) {
+            if (context.isMarginCallTriggered()) {
+                context.liquidateAllPositions();
+            }
+        }
     }
 
     /**
@@ -172,6 +219,9 @@ public class BacktestEngine {
         /** The latest market prices, updated on each tick by the engine. */
         private Map<String, BigDecimal> currentPrices;
 
+        /** The latest market sentiment, updated on each tick by the engine. */
+        private Map<String, Sentiment> currentSentiments;
+
         /** A list of all trades that have been closed during the simulation. */
         private final List<Trade> executedTrades = new ArrayList<>();
 
@@ -214,9 +264,25 @@ public class BacktestEngine {
             }
 
             this.currentPrices = Collections.emptyMap();
+            this.currentSentiments = Collections.emptyMap();
 
             this.tradingFeePercentage = tradingFeePercentage;
             this.slippagePercentage = slippagePercentage;
+        }
+
+        /**
+         * Constructs and initializes a new BacktestTradingContext based on a {@link BacktestConfig}
+         * object.
+         */
+        BacktestTradingContext(BacktestConfig config) {
+            this(
+                config.getInitialCapital(),
+                config.getTradingFeePercentage(),
+                config.getSlippagePercentage(),
+                config.getAccountMode(),
+                config.getMarginLeverage(),
+                config.getMaintenanceMarginFactor()
+            );
         }
 
         /**
@@ -268,6 +334,14 @@ public class BacktestEngine {
         @Override
         public BigDecimal getAssetBalance(String asset) {
             return this.wallet.getOrDefault(asset, BigDecimal.ZERO);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Optional<Sentiment> getCurrentSentiment(String symbol) {
+            return Optional.ofNullable(currentSentiments.get(symbol));
         }
 
         /**
@@ -684,6 +758,16 @@ public class BacktestEngine {
          */
         void updateCurrentPrices(Map<String, BigDecimal> prices) {
             this.currentPrices = prices;
+        }
+
+        /**
+         * Updates the context with the latest sentiment for all tracked assets.
+         *
+         * @param sentiments A map where the key is the asset symbol (e.g., "BTC") and the
+         *                   value is the latest known sentiment.
+         */
+        void updateCurrentSentiments(Map<String, Sentiment> sentiments) {
+            this.currentSentiments = sentiments;
         }
 
         /**
