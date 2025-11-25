@@ -1,11 +1,13 @@
 package io.github.impatient0.azero.backtester.cli;
 
+import io.github.impatient0.azero.backtester.cli.util.CsvSentimentLoader;
 import io.github.impatient0.azero.core.model.AccountMode;
 import io.github.impatient0.azero.core.model.Candle;
 import io.github.impatient0.azero.backtester.cli.util.CsvDataLoader;
 import io.github.impatient0.azero.backtester.engine.BacktestEngine;
 import io.github.impatient0.azero.backtester.model.BacktestConfig;
 import io.github.impatient0.azero.backtester.model.BacktestResult;
+import io.github.impatient0.azero.core.model.SentimentSignal;
 import io.github.impatient0.azero.strategy.rules.RulesBasedStrategy;
 import io.github.impatient0.azero.strategy.rules.loader.StrategyLoader;
 import picocli.CommandLine;
@@ -54,6 +56,9 @@ public class BacktesterCli implements Callable<Integer> {
     @Option(names = {"-l", "--leverage"}, description = "The margin leverage to use (only in MARGIN mode).", defaultValue = "5")
     private int leverage;
 
+    @Option(names = {"--sentiment-file"}, description = "The path to the CSV file containing pre-processed sentiment data.")
+    private Path sentimentFile;
+
     /**
      * The main application logic. This method is executed when the command is run.
      *
@@ -66,17 +71,20 @@ public class BacktesterCli implements Callable<Integer> {
             log.info("Strategy: {}, Symbol: {}, Mode: {}", strategyFile, symbol, accountMode);
             log.info("Data File: {}", dataFile);
 
-            // 1. Load Strategy
+            if (sentimentFile != null) {
+                log.info("Sentiment File: {}", sentimentFile);
+            }
+
             StrategyLoader strategyLoader = new StrategyLoader();
             RulesBasedStrategy strategy = strategyLoader.loadFromYaml(strategyFile, symbol);
             log.info("Successfully loaded strategy '{}'", strategy.getName());
 
-            // 2. Load Data
             List<Candle> historicalData = CsvDataLoader.load(dataFile);
+            Map<String, List<SentimentSignal>> sentimentData = CsvSentimentLoader.load(sentimentFile);
 
-            // 3. Configure Engine
             BacktestConfig config = BacktestConfig.builder()
-                .historicalData(Map.of(symbol, historicalData)) // Create the required Map
+                .historicalData(Map.of(symbol, historicalData))
+                .sentimentData(sentimentData)
                 .initialCapital(initialCapital).strategy(strategy).accountMode(accountMode)
                 .marginLeverage(leverage)
                 // Using hardcoded defaults for now, can be exposed as CLI options in the future
@@ -86,13 +94,11 @@ public class BacktesterCli implements Callable<Integer> {
             log.info("Backtest configured. Initial capital: ${}, Leverage: {}x", initialCapital,
                 leverage);
 
-            // 4. Run Simulation
             log.info("--- Starting Simulation ---");
             BacktestEngine engine = new BacktestEngine();
             BacktestResult result = engine.run(config);
             log.info("--- Simulation Complete ---");
 
-            // 5. Report Results
             printResults(result);
 
             return 0; // Success
