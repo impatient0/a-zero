@@ -8,6 +8,7 @@ import io.github.impatient0.azero.core.event.MarketEvent;
 import io.github.impatient0.azero.core.model.AccountMode;
 import io.github.impatient0.azero.core.model.Candle;
 import io.github.impatient0.azero.core.model.Position;
+import io.github.impatient0.azero.core.model.SentimentSignal;
 import io.github.impatient0.azero.core.model.Trade;
 import io.github.impatient0.azero.core.model.TradeDirection;
 import java.math.RoundingMode;
@@ -27,6 +28,7 @@ import java.util.Queue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@DisplayName("Backtest Engine Unit Tests")
 class BacktestEngineTest {
 
     private BacktestEngine backtestEngine;
@@ -775,6 +777,97 @@ class BacktestEngineTest {
             BigDecimal expectedEquity = new BigDecimal("21500");
             assertEquals(0, expectedEquity.compareTo(totalEquity),
                 "Total equity should correctly sum the collateralized value of profitable positions and the liabilities of unprofitable ones.");
+        }
+    }
+
+    @Nested
+    @DisplayName("GIVEN Sentiment Data is provided")
+    class SentimentTests {
+
+        @Test
+        @DisplayName("WHEN sentiment exists for a timestamp, THEN it should be available in the context and forward-filled.")
+        void sentiment_propagation_HappyPath() {
+            // --- ARRANGE ---
+            List<Candle> candles = List.of(
+                new Candle(90L, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.ONE),
+                new Candle(100L, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.ONE),
+                new Candle(110L, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.ONE)
+            );
+            Map<String, List<Candle>> historicalData = Map.of("BTCUSDT", candles);
+
+            // Note: t=90 should be empty. t=100 should be BULLISH. t=110 should be BULLISH (forward-fill).
+            List<SentimentSignal> signals = List.of(
+                new SentimentSignal(100L, "BTCUSDT", io.github.impatient0.azero.core.model.Sentiment.BULLISH, 0.9)
+            );
+            Map<String, List<SentimentSignal>> sentimentData = Map.of("BTCUSDT", signals);
+
+            io.github.impatient0.azero.core.strategy.Strategy assertionStrategy = (event, context) -> {
+                long time = event.candle().timestamp();
+                Optional<io.github.impatient0.azero.core.model.Sentiment> sentiment = context.getCurrentSentiment("BTCUSDT");
+
+                if (time == 90L) {
+                    assertTrue(sentiment.isEmpty(), "t=90: Sentiment should be empty before the signal timestamp.");
+                } else if (time == 100L) {
+                    assertTrue(sentiment.isPresent(), "t=100: Sentiment should be present.");
+                    assertEquals(io.github.impatient0.azero.core.model.Sentiment.BULLISH, sentiment.get(), "t=100: Sentiment should be BULLISH.");
+                } else if (time == 110L) {
+                    assertTrue(sentiment.isPresent(), "t=110: Sentiment should be present (forward-filled).");
+                    assertEquals(io.github.impatient0.azero.core.model.Sentiment.BULLISH, sentiment.get(), "t=110: Sentiment should remain BULLISH.");
+                }
+            };
+
+            BacktestConfig config = BacktestConfig.builder()
+                .historicalData(historicalData)
+                .sentimentData(sentimentData)
+                .initialCapital(new BigDecimal("1000"))
+                .strategy(assertionStrategy)
+                .build();
+
+            // --- ACT ---
+            backtestEngine.run(config);
+
+            // --- ASSERT ---
+            // Assertions happen inside the strategy. If run() completes without exception, tests passed.
+        }
+
+        @Test
+        @DisplayName("WHEN multiple symbols exist, THEN sentiment should be isolated by symbol.")
+        void sentiment_multiSymbol_Independence() {
+            // --- ARRANGE ---
+            Candle candle = new Candle(100L, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.ONE);
+            Map<String, List<Candle>> historicalData = Map.of(
+                "BTCUSDT", List.of(candle),
+                "ETHUSDT", List.of(candle)
+            );
+
+            List<SentimentSignal> btcSignals = List.of(
+                new SentimentSignal(100L, "BTCUSDT", io.github.impatient0.azero.core.model.Sentiment.BEARISH, 0.8)
+            );
+            Map<String, List<SentimentSignal>> sentimentData = Map.of("BTCUSDT", btcSignals);
+
+            io.github.impatient0.azero.core.strategy.Strategy assertionStrategy = (event, context) -> {
+                if (event.symbol().equals("BTCUSDT")) {
+                    Optional<io.github.impatient0.azero.core.model.Sentiment> s = context.getCurrentSentiment("BTCUSDT");
+                    assertTrue(s.isPresent());
+                    assertEquals(io.github.impatient0.azero.core.model.Sentiment.BEARISH, s.get());
+                } else if (event.symbol().equals("ETHUSDT")) {
+                    Optional<io.github.impatient0.azero.core.model.Sentiment> s = context.getCurrentSentiment("ETHUSDT");
+                    assertTrue(s.isEmpty(), "ETH should not have sentiment even if BTC does.");
+                }
+            };
+
+            BacktestConfig config = BacktestConfig.builder()
+                .historicalData(historicalData)
+                .sentimentData(sentimentData)
+                .initialCapital(new BigDecimal("1000"))
+                .strategy(assertionStrategy)
+                .build();
+
+            // --- ACT ---
+            backtestEngine.run(config);
+
+            // --- ASSERT ---
+            // Assertions happen inside the strategy. If run() completes without exception, tests passed.
         }
     }
 }
