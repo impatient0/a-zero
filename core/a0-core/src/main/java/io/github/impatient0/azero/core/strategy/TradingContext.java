@@ -16,7 +16,7 @@ import java.util.Optional;
  * to query market data, manage positions, and execute orders without being tightly
  * coupled to the underlying execution engine.
  */
-public interface TradingContext {
+public interface TradingContext extends MarketContext {
 
     /**
      * Retrieves the currently open position for a given symbol, if one exists.
@@ -71,24 +71,6 @@ public interface TradingContext {
      * @return The balance of the asset, or {@code BigDecimal.ZERO} if the asset is not in the wallet.
      */
     BigDecimal getAssetBalance(String asset);
-
-    /**
-     * Retrieves the latest known market sentiment for the specified symbol.
-     * <p>
-     * This value represents the most recent sentiment signal (derived from external sources
-     * like news analysis or LLMs) available at the current point in time.
-     * <ul>
-     *   <li>In <b>Backtesting</b>: This returns the sentiment from the latest signal
-     *       occurring at or before the current simulation timestamp.</li>
-     *   <li>In <b>Live Trading</b>: This returns the most recent signal received from
-     *       the configured sentiment provider.</li>
-     * </ul>
-     *
-     * @param symbol The trading symbol (e.g., "BTCUSDT") to check.
-     * @return an {@link Optional} containing the current {@link Sentiment} (BULLISH, BEARISH, NEUTRAL)
-     *         if data is available, or an empty Optional if no sentiment has been established yet.
-     */
-    Optional<Sentiment> getCurrentSentiment(String symbol);
 
     /**
      * Submits an order to the trading engine to modify a position.
