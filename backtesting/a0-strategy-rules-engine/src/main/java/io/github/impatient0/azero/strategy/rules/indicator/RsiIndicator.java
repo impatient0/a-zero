@@ -1,6 +1,7 @@
 package io.github.impatient0.azero.strategy.rules.indicator;
 
 import io.github.impatient0.azero.core.model.Candle;
+import io.github.impatient0.azero.core.strategy.MarketContext;
 import io.github.impatient0.azero.strategy.rules.config.RsiIndicatorConfig;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.BaseBarSeriesBuilder;
@@ -61,7 +62,7 @@ public final class RsiIndicator implements Indicator {
     }
 
     @Override
-    public boolean isSignalTriggered() {
+    public boolean isSignalTriggered(MarketContext context) {
         // Do not trigger a signal if the indicator has not yet collected enough
         // data to be stable.
         if (series.getBarCount() <= getLookbackPeriod()) {

@@ -4,6 +4,7 @@ import io.github.impatient0.azero.core.event.MarketEvent;
 import io.github.impatient0.azero.core.model.Candle;
 import io.github.impatient0.azero.core.model.Position;
 import io.github.impatient0.azero.core.model.TradeDirection;
+import io.github.impatient0.azero.core.strategy.MarketContext;
 import io.github.impatient0.azero.core.strategy.TradingContext;
 import io.github.impatient0.azero.strategy.rules.exit.ExitRule;
 import io.github.impatient0.azero.strategy.rules.indicator.Indicator;
@@ -63,8 +64,8 @@ class RulesBasedStrategyTest {
                 positionSizer,
                 0 // Lookback period is 0 for this test
             );
-            when(indicator1.isSignalTriggered()).thenReturn(true);
-            when(indicator2.isSignalTriggered()).thenReturn(true);
+            when(indicator1.isSignalTriggered(any(MarketContext.class))).thenReturn(true);
+            when(indicator2.isSignalTriggered(any(MarketContext.class))).thenReturn(true);
             when(positionSizer.calculateQuantity(any(), any())).thenReturn(BigDecimal.ONE);
             when(tradingContext.getNetAssetValue()).thenReturn(new BigDecimal("1000"));
 
@@ -88,8 +89,8 @@ class RulesBasedStrategyTest {
                 positionSizer,
                 0 // Lookback period is 0 for this test
             );
-            when(indicator1.isSignalTriggered()).thenReturn(true);
-            when(indicator2.isSignalTriggered()).thenReturn(false); // One indicator is false
+            when(indicator1.isSignalTriggered(any(MarketContext.class))).thenReturn(true);
+            when(indicator2.isSignalTriggered(any(MarketContext.class))).thenReturn(false); // One indicator is false
 
             // --- ACT ---
             strategy.onMarketEvent(DUMMY_EVENT, tradingContext);
@@ -113,7 +114,7 @@ class RulesBasedStrategyTest {
             }
 
             // --- ASSERT ---
-            verify(indicator1, never()).isSignalTriggered();
+            verify(indicator1, never()).isSignalTriggered(any(MarketContext.class));
             verify(tradingContext, never()).submitOrder(any(), any(), any(), any());
         }
 
@@ -126,7 +127,7 @@ class RulesBasedStrategyTest {
                 positionSizer, 0 // No lookback period for this test
             );
 
-            when(indicator1.isSignalTriggered()).thenReturn(true);
+            when(indicator1.isSignalTriggered(any(MarketContext.class))).thenReturn(true);
             when(tradingContext.getNetAssetValue()).thenReturn(new BigDecimal("1000"));
             when(positionSizer.calculateQuantity(any(), any())).thenReturn(BigDecimal.ZERO);
 
@@ -193,8 +194,8 @@ class RulesBasedStrategyTest {
             strategy.onMarketEvent(DUMMY_EVENT, tradingContext);
 
             // --- ASSERT ---
-            verify(indicator1, never()).isSignalTriggered();
-            verify(indicator2, never()).isSignalTriggered();
+            verify(indicator1, never()).isSignalTriggered(any(MarketContext.class));
+            verify(indicator2, never()).isSignalTriggered(any(MarketContext.class));
             verify(tradingContext, never()).submitOrder(any(), any(), any(), any());
         }
 

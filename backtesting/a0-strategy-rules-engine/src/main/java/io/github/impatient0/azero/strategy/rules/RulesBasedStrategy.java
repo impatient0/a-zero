@@ -4,6 +4,7 @@ import io.github.impatient0.azero.core.event.MarketEvent;
 import io.github.impatient0.azero.core.model.Candle;
 import io.github.impatient0.azero.core.model.Position;
 import io.github.impatient0.azero.core.model.TradeDirection;
+import io.github.impatient0.azero.core.strategy.MarketContext;
 import io.github.impatient0.azero.core.strategy.Strategy;
 import io.github.impatient0.azero.core.strategy.TradingContext;
 import io.github.impatient0.azero.strategy.rules.exit.ExitRule;
@@ -53,7 +54,7 @@ public class RulesBasedStrategy implements Strategy {
                 }
             }
         } else {
-            if (shouldEnter()) {
+            if (shouldEnter(context)) {
                 BigDecimal nav = context.getNetAssetValue();
                 BigDecimal price = candle.close();
                 BigDecimal quantity = positionSizer.calculateQuantity(nav, price);
@@ -67,10 +68,10 @@ public class RulesBasedStrategy implements Strategy {
         }
     }
 
-    private boolean shouldEnter() {
+    private boolean shouldEnter(TradingContext context) {
         if (barCount <= maxLookbackPeriod) {
             return false;
         }
-        return entryIndicators.stream().allMatch(Indicator::isSignalTriggered);
+        return entryIndicators.stream().allMatch(indicator -> indicator.isSignalTriggered(context));
     }
 }

@@ -1,8 +1,11 @@
 package io.github.impatient0.azero.strategy.rules.indicator;
 
 import io.github.impatient0.azero.core.model.Candle;
+import io.github.impatient0.azero.core.model.Sentiment;
+import io.github.impatient0.azero.core.strategy.MarketContext;
 import io.github.impatient0.azero.strategy.rules.config.RsiIndicatorConfig;
 import io.github.impatient0.azero.strategy.rules.config.SignalCondition;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +21,7 @@ class RsiIndicatorTest {
 
     private static final Duration DUMMY_DURATION = Duration.ofHours(1);
     private List<Candle> candles;
+    private MarketContext dummyContext = new DummyContext();
 
     @BeforeEach
     void setUp() {
@@ -42,7 +46,7 @@ class RsiIndicatorTest {
         candles.subList(0, 15).forEach(indicator::update);
 
         // Assert
-        assertTrue(indicator.isSignalTriggered(), "RSI should be low and trigger a LESS_THAN signal.");
+        assertTrue(indicator.isSignalTriggered(dummyContext), "RSI should be low and trigger a LESS_THAN signal.");
     }
 
     @Test
@@ -56,7 +60,7 @@ class RsiIndicatorTest {
         candles.forEach(indicator::update);
 
         // Assert
-        assertTrue(indicator.isSignalTriggered(), "RSI should be high and trigger a GREATER_THAN signal.");
+        assertTrue(indicator.isSignalTriggered(dummyContext), "RSI should be high and trigger a GREATER_THAN signal.");
     }
 
     @Test
@@ -70,6 +74,14 @@ class RsiIndicatorTest {
         candles.subList(0, 14).forEach(indicator::update);
 
         // Assert
-        assertFalse(indicator.isSignalTriggered(), "Signal should not trigger during the lookback period.");
+        assertFalse(indicator.isSignalTriggered(dummyContext), "Signal should not trigger during the lookback period.");
+    }
+
+    private static class DummyContext implements MarketContext {
+
+        @Override
+        public Optional<Sentiment> getCurrentSentiment(String symbol) {
+            return Optional.empty();
+        }
     }
 }

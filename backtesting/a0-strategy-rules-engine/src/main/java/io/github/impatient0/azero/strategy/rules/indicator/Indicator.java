@@ -1,6 +1,7 @@
 package io.github.impatient0.azero.strategy.rules.indicator;
 
 import io.github.impatient0.azero.core.model.Candle;
+import io.github.impatient0.azero.core.strategy.MarketContext;
 
 /**
  * An interface representing a single, stateful technical indicator rule.
@@ -8,9 +9,6 @@ import io.github.impatient0.azero.core.model.Candle;
  * Implementations of this interface encapsulate the logic for a specific
  * technical indicator (e.g., RSI, EMA Cross), track its value over time,
  * and determine when a specific signal condition is met.
- * <p>
- * The expected usage is to call {@link #update(Candle)} sequentially for each candle,
- * and then call {@link #isSignalTriggered()} to check the rule's current state.
  */
 public interface Indicator {
 
@@ -28,9 +26,11 @@ public interface Indicator {
      * It is expected that this method will return {@code false} during the initial
      * lookback period before the indicator has received enough data to be meaningful.
      *
+     * @param context The read-only market context, providing access to external state
+     *                (e.g., sentiment) if needed by the indicator.
      * @return {@code true} if the signal is triggered, otherwise {@code false}.
      */
-    boolean isSignalTriggered();
+    boolean isSignalTriggered(MarketContext context);
 
     /**
      * Returns the number of candles required by this indicator before it can produce a stable value.
