@@ -1,48 +1,41 @@
-# A-Zero :: Data Ingestor (`a0-data-ingestor`)
+# A-Zero :: Data Ingestor
 
-## Module Overview
+A command-line tool that downloads historical K-line (candle) data from the public Binance Spot REST API and saves it to a CSV file. Its output is the input format expected by `a0-backtester-cli`.
 
-The `a0-data-ingestor` is a standalone command-line utility responsible for fetching historical K-line (candle) data from the public Binance Spot REST API. It is designed to download data for a specified cryptocurrency pair, timeframe, and start date, saving the results to a local, standardized CSV file. This tool serves as the primary data source for offline analysis and backtesting within the A-Zero trading system.
+## Build
 
-## How to Build
-
-This module is part of the parent `a-zero` Maven project. To build the executable JAR, run the standard Maven `package` command from the project's root directory.
+From the project root:
 
 ```bash
-# Run from the root a-zero/ directory
 mvn clean package
 ```
 
-This command will compile the code and package it into a single, self-contained executable "uber-jar". The resulting artifact will be located at:
-`a0-data-ingestor/target/a0-data-ingestor-0.1.0-SNAPSHOT.jar`
+This produces a self-contained JAR at `a0-data-ingestor/target/a0-data-ingestor-<version>.jar`.
 
-## How to Run
-
-Execute the JAR file using the `java -jar` command. The application requires three arguments to be provided at runtime. The output CSV file will be created in the directory from which the command is run.
-
-**Example Command:**
+## Run
 
 ```bash
-java -jar a0-data-ingestor/target/a0-data-ingestor-0.1.0-SNAPSHOT.jar --symbol=BTCUSDT --timeframe=1d --start-date=2023-01-01
+java -jar a0-data-ingestor/target/a0-data-ingestor-*.jar --symbol=BTCUSDT --timeframe=1d --start-date=2023-01-01
 ```
 
-### Command-Line Arguments
+The CSV is written to the current directory as `<SYMBOL>-<timeframe>.csv` (here, `BTCUSDT-1d.csv`), with the columns `timestamp_ms,open,high,low,close,volume`.
 
-| Argument       | Description                                                                                              | Example         |
-| :------------- | :------------------------------------------------------------------------------------------------------- | :-------------- |
-| `--symbol`     | **(Required)** The symbol pair for which to fetch data.                                                  | `BTCUSDT`       |
-| `--timeframe`  | **(Required)** The K-line interval or timeframe. Common values include `1h`, `4h`, `1d`.                  | `1d`            |
-| `--start-date` | **(Required)** The inclusive start date for the data download, formatted as `YYYY-MM-DD`.                  | `2023-01-01`    |
+| Argument       | Description                                                          | Example      |
+| :------------- | :------------------------------------------------------------------- | :----------- |
+| `--symbol`     | **(Required)** The symbol pair to fetch.                             | `BTCUSDT`    |
+| `--timeframe`  | **(Required)** The K-line interval, as Binance names it (`1h`, `4h`, `1d`, …). | `1d` |
+| `--start-date` | **(Required)** The inclusive start date, `YYYY-MM-DD` (UTC).          | `2023-01-01` |
 
-## Configuration
+No API key is needed: only public endpoints are used. Binance blocks API access from some regions, in which case the tool exits with an error.
 
-This tool interacts exclusively with public Binance API endpoints, which do not require authentication. Therefore, no API keys or external configuration files are needed to run the application.
+## How it works
 
-## Core Dependencies
+- Requests up to 1,000 candles at a time, starting each request just after the last candle received, and stops when a page comes back short or empty. It waits 500 ms between requests.
+- Writes to `<name>.csv.tmp` and renames it to the final file only when the download completes. On failure the temporary file is deleted, so a partial download never replaces an existing file.
 
-The module relies on a few key, high-quality libraries to ensure robustness and maintainability:
+## Dependencies
 
-*   **`binance-connector-java`**: The official Binance library is used for all API interactions. This choice minimizes the risk of implementation errors and ensures compatibility with the target API.
-*   **`picocli`**: Handles all command-line argument parsing. It provides robust validation, type conversion, and automatically generates user-friendly help messages.
-*   **`Apache Commons CSV`**: Used for writing the output data. This library ensures the CSV file is correctly formatted and safely handles any required data escaping.
-*   **`SLF4J` & `Logback`**: Provide a standard and powerful logging framework, which is essential for monitoring the application's execution and diagnosing any issues.
+- `binance-connector-java` for API calls.
+- `picocli` for argument parsing and `--help`.
+- Apache Commons CSV for writing the output.
+- SLF4J with Logback for logging.
