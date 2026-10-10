@@ -1,40 +1,34 @@
 # A-Zero :: Backtester CLI
 
-This module provides the primary user-facing application for the A-Zero backtesting suite. It is a standalone command-line interface (CLI) that brings together the `a0-backtester` engine and the `a0-strategy-rules-engine` to run a complete trading simulation from start to finish.
+A command-line application that runs one backtest: it loads a strategy from a YAML file (via `a0-strategy-rules-engine`), loads candles from a CSV file, runs the `a0-backtester` engine, and prints a short summary.
 
-The application reads a strategy definition from a YAML file, loads historical market data from a CSV file, runs the simulation, and prints a formatted performance summary to the console.
+## Build
 
-## Building the Application
-
-The project is configured to produce a standalone, executable "uber-jar" that contains all necessary dependencies.
-
-To build the application, navigate to the root of the `a-zero` project and run the standard Maven package command:
+From the project root:
 
 ```bash
 mvn clean package
 ```
 
-This will create the executable JAR at the following path: `a0-backtester-cli/target/a0-backtester-cli-0.2.0-SNAPSHOT.jar`.
+This produces a self-contained JAR at `a0-backtester-cli/target/a0-backtester-cli-<version>.jar`.
 
-## Running a Backtest
-
-Once built, you can run a backtest simulation using the `java -jar` command. You must provide paths to your strategy and data files, along with other required parameters.
-
-### Example Command
+## Run
 
 ```bash
 java -jar a0-backtester-cli/target/a0-backtester-cli-*.jar \
   --strategy-file=./path/to/my-strategy.yaml \
-  --data-file=./data/BTCUSDT-1h.csv \
+  --data-file=./BTCUSDT-1h.csv \
   --symbol=BTCUSDT \
   --account-mode=MARGIN \
   --leverage=10 \
   --initial-capital=20000
 ```
 
-### Command-Line Options
+The data file uses the format written by `a0-data-ingestor`: a header row, then `timestamp_ms,open,high,low,close,volume`.
 
-The application is configured using the following command-line flags. You can also run the application with the `--help` flag to display this information at any time.
+### Options
+
+Run with `--help` to print these.
 
 | Short Flag | Long Flag             | Required | Description                                                                    | Default Value |
 | :--------- | :-------------------- | :------- | :----------------------------------------------------------------------------- | :------------ |
@@ -45,9 +39,11 @@ The application is configured using the following command-line flags. You can al
 | `-c`       | `--initial-capital`   | No       | The starting capital for the simulation (in the quote currency, e.g., USDT).   | `10000.00`    |
 | `-l`       | `--leverage`          | No       | The margin leverage to use (only applicable in `MARGIN` mode).                 | `5`           |
 
-### Sample Output
+The trading fee (0.1%) and slippage (0.05%) are fixed in the CLI and are not exposed as options.
 
-A successful backtest run will produce a formatted summary similar to the following:
+### Output
+
+The summary has this format:
 
 ```
 ================== Backtest Results ==================
@@ -55,3 +51,4 @@ Final Portfolio Value: $10,388.22
 Total P/L:             $388.22 (3.88%)
 Total Trades Executed: 1
 ====================================================
+```

@@ -1,8 +1,8 @@
 # A-Zero :: Strategy Rules Engine
 
-This module provides a powerful library for creating executable trading strategies from simple, declarative YAML configuration files. It acts as the "brain" of a strategy, encapsulating all logic related to technical analysis and rule-based decision-making.
+This library builds executable trading strategies from declarative YAML files. It contains all of the project's technical-analysis and rule-evaluation logic; RSI values are computed with [ta4j](https://github.com/ta4j/ta4j).
 
-The core purpose of this engine is to separate the *definition* of a strategy (the human-readable YAML file) from its *execution* (the `a0-backtester` or a live trading module).
+The core purpose of this engine is to separate the *definition* of a strategy (the human-readable YAML file) from its *execution* (by the `a0-backtester` engine).
 
 ## Core Components
 
@@ -12,7 +12,7 @@ The core purpose of this engine is to separate the *definition* of a strategy (t
     -   **Entry Logic**: Enters a position only when **all** of its configured entry indicator rules are simultaneously true (an "AND" gate).
     -   **Exit Logic**: Exits an open position as soon as **any** of its configured exit rules are true (an "OR" gate).
 
--   **Indicators & Rules**: The engine is built on an extensible system of indicators (`Indicator`), exit rules (`ExitRule`), and position sizers (`PositionSizer`). This module provides initial implementations for common use cases.
+-   **Indicators & Rules**: Each part is behind an interface: `Indicator`, `ExitRule` and `PositionSizer`. There is currently one indicator (RSI), two exit rules (StopLoss, TakeProfit) and one sizer (Fixed_Percentage).
 
 ## The YAML Strategy Configuration File
 
@@ -61,7 +61,7 @@ exit_rules:
 
 ## How to Use
 
-The `StrategyLoader` makes it simple to create a strategy instance from a file.
+Load a strategy instance from a file with `StrategyLoader`:
 
 ```java
 import io.github.impatient0.azero.strategy.rules.loader.StrategyLoader;
@@ -95,10 +95,6 @@ try {
 }
 ```
 
-## Future Work & Backlog
+## Adding rule types
 
-The rules engine is designed for extensibility. The following are planned enhancements:
-
--   **Implement More Indicators**: Add support for other common indicators, such as `EMA_Cross`, `MACD`, etc., by adding new records to the `IndicatorConfig` hierarchy.
--   **Implement More Exit Rules**: Add new exit types, such as `TrailingStopLoss`.
--   **Implement More Position Sizers**: Add new sizing methods, such as sizing based on a fixed dollar amount or based on risk (stop-loss distance).
+A new indicator, exit rule or sizer needs a config record added to the matching sealed interface (`IndicatorConfig`, `ExitRuleConfig`, `PositionSizingConfig`) with a Jackson type name, an implementation class, and a case in `StrategyLoader`. Obvious candidates that don't exist yet: a moving-average crossover, MACD, a trailing stop, and risk-based sizing.

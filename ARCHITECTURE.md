@@ -1,129 +1,110 @@
-# "A-Zero" Crypto Trading System: Architectural Specification (v0.1)
+# A-Zero: Architecture
 
-## 1. Project Vision & Guiding Principles
-- **Vision:** To build a robust, modular, and data-driven system for developing, backtesting, and executing automated crypto trading strategies.
-- **Principles:**
-    - **Safety First:** The system must be designed to be fail-safe and to strictly control financial risk.
-    - **Systematic & Data-Driven:** All strategies must be rigorously tested on historical data before any live deployment.
-    - **Iterative Complexity:** Start with simple, understandable components and add complexity incrementally and measurably.
-    - **Phased Rollout:** All strategies must pass through Backtesting -> Paper Trading -> Limited Live Trading phases.
+## 1. Overview
 
-## 2. System Architecture Overview (Open Core Model)
+A-Zero is a personal project for backtesting crypto trading strategies on historical data. It is split into small modules so that the backtesting engine does not depend on how strategies are defined or where data comes from.
 
-This project follows an "Open Core" model, separating the reusable framework from proprietary trading strategies.
+### Modules
+1.  `a0-core`: Shared interfaces (`Strategy`, `TradingContext`) and data models (`Candle`, `MarketEvent`, …). A lightweight library with minimal dependencies.
+2.  `a0-data-ingestor`: A CLI tool that fetches and stores historical market data.
+3.  `a0-backtester`: A library containing the backtesting engine for simulating `Strategy` instances. This module has no knowledge of how strategies are defined (e.g., via YAML or code).
+4.  `a0-strategy-rules-engine`: A library that parses declarative strategy definitions (from YAML files) and constructs an executable `Strategy` object. This module contains all technical analysis library dependencies.
+5.  `a0-backtester-cli`: A command-line tool that combines the libraries above into a backtesting application.
 
-- **The Public Framework (`a-zero`):** This repository contains all the core modules, interfaces, and engines. Its purpose is to provide a robust, testable, and reliable foundation for any trading strategy. It is fully open-source.
-- **Private Strategies (`a0-strategies`):** Proprietary strategy implementations are built in a separate, private project. This private project consumes the `a-zero` framework as a library dependency, allowing it to leverage the backtester and other tools to run its secret logic.
+### Data Flow
+- The `data-ingestor` produces CSV data files.
+- The `strategy-rules-engine` consumes a strategy YAML file and produces a `Strategy` object.
+- The `backtester-cli` reads the CSV file, uses the `strategy-rules-engine` to load a strategy, and passes the data and the `Strategy` object to the `a0-backtester` library to run the simulation.
 
-### MVP Architecture
-- **Core Modules (Public):**
-    1.  `a0-core`: Defines the essential public interfaces (`Strategy`, `TradingContext`) and data models (`Candle`). A lightweight library with minimal dependencies.
-    2.  `a0-data-ingestor`: A CLI tool that fetches and stores historical market data.
-    3.  `a0-backtester`: A library containing the core backtesting engine for simulating `Strategy` instances. This module has no knowledge of how strategies are defined (e.g., via YAML or code).
-    4.  `a0-strategy-rules-engine`: A library that can parse declarative strategy definitions (from YAML files) and construct an executable `Strategy` object. This module contains all technical analysis library dependencies.
-    5.  `a0-backtester-cli`: A command-line tool that consumes all the above libraries to provide a user-facing backtesting application.
-- **Data Flow:**
-    - The `data-ingestor` produces CSV data files.
-    - The `strategy-rules-engine` consumes a strategy YAML file and produces a `Strategy` object.
-    - The `backtester-cli` consumes the CSV files, uses the `strategy-rules-engine` to load a strategy, and then passes the data and the `Strategy` object to the `a0-backtester` library to run the simulation.
+## 2. Module Specifications
 
-## 3. Module Specifications
-
-### 3.1 Module: `a0-core` (Library)
-- **Status:** Implemented in v0.1
-- **Responsibility:** To provide the foundational data models and interfaces shared across the entire system. It is a non-executable library with near-zero dependencies to ensure stability.
+### 2.1 Module: `a0-core` (Library)
+- **Responsibility:** Foundational data models and interfaces shared across the system. A non-executable library depending only on the SLF4J API (and Lombok at compile time).
 - **Key Contents:**
-    - **Models:** `Candle`, `Position`, `Trade`, `TradeDirection`.
+    - **Models:** `Candle`, `Position`, `Trade`, `TradeDirection`, `AccountMode`.
+    - **Events:** `MarketEvent` (a symbol plus a `Candle`).
     - **Interfaces:** `Strategy`, `TradingContext`.
 
-### 3.2 Module: `a0-data-ingestor` (Application)
-- **Status:** Implemented in v0.1
-- **Documentation:** See Ingestor's [README.md](a0-data-ingestor/README.md)
-- **Responsibility:** To fetch historical K-line (candle) data for a given crypto spot pair from the Binance public API and save it to a local CSV file.
-- **Inputs:**
-    - `symbol` (e.g., "BTCUSDT")
-    - `timeframe` (e.g., "1h")
-    - `start_date` (e.g., "2022-01-01")
-- **Outputs:** A CSV file named `<symbol>-<timeframe>.csv`.
+### 2.2 Module: `a0-data-ingestor` (Application)
+- **Documentation:** See the ingestor's [README.md](a0-data-ingestor/README.md)
+- **Responsibility:** Fetch historical K-line (candle) data for a crypto spot pair from the Binance public API and save it to a local CSV file.
+- **Inputs:** `--symbol` (e.g., `BTCUSDT`), `--timeframe` (e.g., `1h`), `--start-date` (e.g., `2022-01-01`).
+- **Outputs:** A CSV file named `<SYMBOL>-<timeframe>.csv` in the current directory.
 
-### 3.3 Module: `a0-backtester` (Library)
-- **Status:** Implemented in v0.1
-- **Documentation:** See Backtester's [README.md](a0-backtester/README.md)
-- **Responsibility:** To provide a robust, event-driven engine for simulating a trading strategy against historical data. It manages portfolio state, simulates realistic trading costs, and produces a detailed performance summary. This is a non-executable library.
-- **Inputs:**
-    - Path to a data CSV file (produced by `data-ingestor`).
-    - Path to a strategy definition YAML file.
-- **Outputs:** A performance summary printed to the console.
+### 2.3 Module: `a0-backtester` (Library)
+- **Documentation:** See the backtester's [README.md](a0-backtester/README.md)
+- **Responsibility:** An event-driven engine that simulates a trading strategy against historical data. It manages portfolio state in `SPOT_ONLY` or `MARGIN` mode, applies fees and slippage, and liquidates positions on a margin call. This is a non-executable library.
+- **Inputs:** A `BacktestConfig`: historical candles per symbol (`Map<String, List<Candle>>`), a `Strategy` instance, initial capital, account mode, leverage, maintenance margin factor, fee and slippage.
+- **Outputs:** A `BacktestResult`: final net asset value, P/L, and the list of completed trades.
 
-### 3.4 Module: `a0-strategy-rules-engine` (Library)
-- **Status:** Implemented in v0.2
-- **Documentation:** See Strategy Rules Engine's [README.md](a0-strategy-rules-engine/README.md)
-- **Responsibility:** To parse declarative, rule-based strategy definitions (from YAML files) and construct an executable `Strategy` object. It encapsulates all logic related to technical indicators and their calculation.
+### 2.4 Module: `a0-strategy-rules-engine` (Library)
+- **Documentation:** See the rules engine's [README.md](a0-strategy-rules-engine/README.md)
+- **Responsibility:** Parse rule-based strategy definitions (from YAML files) and construct an executable `Strategy` object. It contains all logic related to technical indicators and their calculation.
 - **Inputs:** A path to a configuration file (e.g., `strategy.yaml`) and the target symbol.
-- **Outputs:** An instantiated Java object that implements the `io.github.impatient0.azero.core.strategy.Strategy` interface.
+- **Outputs:** A `RulesBasedStrategy`, which implements the `io.github.impatient0.azero.core.strategy.Strategy` interface.
 
-### 3.5 Module: `a0-backtester-cli` (Application)
-- **Status:** Implemented in v0.2
-- **Documentation:** See Backtester CLI's [README.md](a0-backtester-cli/README.md)
-- **Responsibility:** To provide a user-facing command-line interface for the backtester. It wires together the data, the backtesting engine, and the strategy rules engine to run a full simulation.
-- **Inputs:** Command-line arguments specifying paths to data files and strategy definition files.
+### 2.5 Module: `a0-backtester-cli` (Application)
+- **Documentation:** See the backtester CLI's [README.md](a0-backtester-cli/README.md)
+- **Responsibility:** A command-line interface for the backtester. It wires together the data, the backtesting engine, and the strategy rules engine to run a full simulation.
+- **Inputs:** Command-line arguments specifying the strategy file, data file, symbol, account mode, initial capital and leverage.
 - **Outputs:** A formatted performance summary printed to the console.
 
-## 4. Data Contracts & Core Interfaces
+## 3. Data Contracts & Core Interfaces
 
-### 4.1 Strategy Definition YAML (`strategy.yaml`)
+### 3.1 Strategy Definition YAML (`strategy.yaml`)
 ```yaml
-strategy_name: "EMA Cross with RSI Filter"
+strategy_name: "RSI Oversold Entry with Fixed P/L"
+direction: LONG
+timeframe: "4h"
+
+position_sizing:
+  type: "Fixed_Percentage"
+  percentage: 2.5
 
 entry_rules:
-  - indicator: "EMA_Cross"
-    short_period: 50
-    long_period: 200
-    condition: "crosses_above"
   - indicator: "RSI"
     period: 14
     condition: "less_than"
-    value: 50
-    
+    value: 30
+
 exit_rules:
   - type: "StopLoss"
     percentage: 2.0
   - type: "TakeProfit"
-    percentage: 4.0
+    percentage: 5.0
 ```
+Supported values: `indicator: RSI` with `less_than` / `greater_than`; exit `type: StopLoss` / `TakeProfit`; sizing `type: Fixed_Percentage`.
 
-### 4.2 Core Java Interfaces
+### 3.2 Core Java Interfaces
 
 #### `Strategy.java`
-This is the core interface that all trading strategies must implement. The engine interacts with a strategy primarily through this contract.
+The interface all trading strategies implement. The engine calls it once per incoming market event.
 ```java
 public interface Strategy {
-    void onCandle(Candle candle, TradingContext context);
+    void onMarketEvent(MarketEvent event, TradingContext context);
 }
 ```
-The strategy implementation is expected to be stateful, maintaining its own history of recent candles to perform technical analysis calculations.
+Implementations are expected to be stateful (e.g., keeping their own indicator history), so a new instance is needed for each backtest run.
 
 #### `TradingContext.java`
-This interface is the strategy's gateway to the trading environment. It abstracts away the difference between a backtest and live trading. The interaction follows a "Fire-and-Reconcile" pattern:
-1.  **Fire:** The strategy states its intent by calling `submitOrder(...)`. This method returns `void` and does not block.
-2.  **Reconcile:** On the next `onCandle` event, the strategy calls `getOpenPosition(...)` to see the actual state of its portfolio, thus reconciling its internal state with the "ground truth" of the execution environment.
+The strategy's gateway to the trading environment. It hides whether the strategy is running in a backtest or elsewhere. The interaction follows a "fire-and-reconcile" pattern:
+1.  **Fire:** The strategy states its intent by calling `submitOrder(...)`. This method returns `void` and does not guarantee execution.
+2.  **Reconcile:** On a later event, the strategy calls `getOpenPosition(...)` to see the actual state of its portfolio.
 
 ```java
 public interface TradingContext {
     Optional<Position> getOpenPosition(String symbol);
+    Map<String, Position> getOpenPositions();
+    BigDecimal getNetAssetValue();
+    BigDecimal getMarginEquity();
+    Map<String, BigDecimal> getWalletBalances();
+    BigDecimal getAssetBalance(String asset);
     void submitOrder(String symbol, TradeDirection direction, BigDecimal quantity, BigDecimal price);
 }
 ```
 
+## 4. Continuous Integration
 
-## 5. Continuous Integration Process
+The CI workflow is defined in [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
-The project's quality and stability are enforced by an automated Continuous Integration (CI) workflow defined in [`.github/workflows/build.yml`](.github/workflows/build.yml).
-
-The CI process is triggered on all pushes and pull requests to the `main` and `develop` branches. On each trigger, the workflow executes the `mvn -B package` command within a clean Ubuntu environment using JDK 21. This single command serves as our primary quality gate by performing three critical actions:
-
-1.  **Compile:** Verifies that all source code is syntactically correct and compiles successfully.
-2.  **Test:** Executes the complete suite of automated tests across all project modules.
-3.  **Package:** Ensures the project can be correctly packaged into its distributable JAR artifacts.
-
-A failure in any of these stages will result in a failed workflow run, providing immediate feedback and preventing defective code from being merged into the main branches. The build status is publicly visible via the badge in the project's [`README.md`](README.md).
+It runs on pushes and pull requests to the `main` and `develop` branches. Each run executes `mvn -B package` on Ubuntu with JDK 21 (Temurin), which compiles all modules, runs the unit tests, and packages the JARs. The build status is shown by the badge in [`README.md`](README.md).
